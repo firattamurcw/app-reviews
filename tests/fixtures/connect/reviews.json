@@ -1,0 +1,52 @@
+{
+  "data": [
+    {
+      "type": "customerReviews",
+      "id": "abc-111-222-333",
+      "attributes": {
+        "rating": 5,
+        "title": "Absolutely love this app",
+        "body": "Simple, fast, and reliable. Best productivity app on the App Store.",
+        "reviewerNickname": "PowerUser2024",
+        "createdDate": "2024-03-15T17:34:00Z",
+        "territory": "USA"
+      },
+      "relationships": {
+        "response": {"data": null}
+      }
+    },
+    {
+      "type": "customerReviews",
+      "id": "def-444-555-666",
+      "attributes": {
+        "rating": 2,
+        "title": "Disappointing update",
+        "body": "The new version removed features I relied on daily. Please bring them back.",
+        "reviewerNickname": "LongTimeUser",
+        "createdDate": "2024-03-12T09:20:00Z",
+        "territory": "GBR"
+      },
+      "relationships": {
+        "response": {"data": null}
+      }
+    },
+    {
+      "type": "customerReviews",
+      "id": "ghi-777-888-999",
+      "attributes": {
+        "rating": 4,
+        "title": "Great app with minor issues",
+        "body": "Really enjoy using this daily. A few bugs here and there but nothing major.",
+        "reviewerNickname": "CasualReviewer",
+        "createdDate": "2024-03-08T14:55:00Z",
+        "territory": "CAN"
+      },
+      "relationships": {
+        "response": {"data": null}
+      }
+    }
+  ],
+  "meta": {
+    "paginationToken": null
+  }
+}

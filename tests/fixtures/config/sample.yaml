@@ -1,0 +1,9 @@
+app_ids:
+  - "123456789"
+countries:
+  - us
+  - gb
+provider: rss
+retry:
+  max_retries: 5
+  timeout: 60.0

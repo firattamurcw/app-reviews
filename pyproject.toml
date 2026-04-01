@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "appstore-reviews"
+version = "0.1.0"
+description = "The go-to Python package for App Store review extraction"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Firat Tamur" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = [
+    "httpx>=0.28.1,<1",
+    "pydantic>=2.12.5,<3",
+    "click>=8.3.1,<9",
+    "pyyaml>=6.0.3,<7",
+    "cryptography>=44.0.0,<45",
+]
+
+[project.scripts]
+appstore-reviews = "appstore_reviews.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/firattamur/appstore-reviews"
+Documentation = "https://firattamur.github.io/appstore-reviews"
+Repository = "https://github.com/firattamur/appstore-reviews"
+Issues = "https://github.com/firattamur/appstore-reviews/issues"
+
+[dependency-groups]
+dev = [
+    "pytest==9.0.2",
+    "pytest-cov==7.1.0",
+    "pytest-asyncio==1.3.0",
+    "mypy==1.20.0",
+    "ruff==0.15.8",
+    "pre-commit==4.5.1",
+    "types-pyyaml==6.0.12.20250915",
+]
+docs = [
+    "mkdocs-material==9.7.6",
+    "mkdocstrings[python]==1.0.3",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["appstore_reviews"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["appstore_reviews"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]
