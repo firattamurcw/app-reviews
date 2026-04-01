@@ -1,0 +1,57 @@
+site_name: App Reviews
+site_description: Fetch app reviews from the Apple App Store and Google Play Store with Python
+site_url: https://firattamurcw.github.io/app-reviews/
+repo_url: https://github.com/firattamurcw/app-reviews
+repo_name: firattamurcw/app-reviews
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
+  - Guide:
+      - CLI: guide/cli.md
+      - Interactive TUI: guide/tui.md
+      - Python API: guide/python-api.md
+      - Authentication: guide/authentication.md
+      - Export Formats: guide/export.md
+  - Reference:
+      - Models: reference/models.md
+      - How It Works: reference/how-it-works.md
+  - Contributing: contributing.md

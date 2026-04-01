@@ -1,0 +1,35 @@
+[
+  {
+    "id": {"label": "1234567890"},
+    "updated": {"label": "2024-03-15T10:22:31-07:00"},
+    "title": {"label": "Best app ever!"},
+    "content": {"label": "This app has completely changed how I manage my tasks. Highly recommend to everyone."},
+    "im:rating": {"label": "5"},
+    "im:version": {"label": "3.2.1"},
+    "author": {"name": {"label": "HappyUser42"}},
+    "im:voteSum": {"label": "12"},
+    "im:voteCount": {"label": "15"}
+  },
+  {
+    "id": {"label": "9876543210"},
+    "updated": {"label": "2024-03-14T08:05:47-07:00"},
+    "title": {"label": "Good but needs work"},
+    "content": {"label": "  The core features are solid but the UI feels outdated.\nCrashes occasionally on my device.  "},
+    "im:rating": {"label": "3"},
+    "im:version": {"label": "3.2.0"},
+    "author": {"name": {"label": "TechReviewer99"}},
+    "im:voteSum": {"label": "3"},
+    "im:voteCount": {"label": "8"}
+  },
+  {
+    "id": {"label": "1122334455"},
+    "updated": {"label": "2024-03-10T19:47:12-07:00"},
+    "title": {"label": "Terrible experience"},
+    "content": {"label": "Lost all my data after the last update. Customer support never responded."},
+    "im:rating": {"label": "1"},
+    "im:version": {"label": "3.1.9"},
+    "author": {"name": {"label": "AngryCustomer007"}},
+    "im:voteSum": {"label": "25"},
+    "im:voteCount": {"label": "30"}
+  }
+]

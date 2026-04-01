@@ -1,0 +1,81 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "app-reviews"
+version = "0.1.0"
+description = "The go-to Python package for App Store and Google Play review extraction"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Firat Tamur" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = [
+    "cryptography==46.0.6",
+]
+
+[project.optional-dependencies]
+tui = ["textual==8.2.1"]
+
+[project.scripts]
+app-reviews = "app_reviews.tui:main"
+
+[project.urls]
+Homepage = "https://github.com/firattamurcw/app-reviews"
+Repository = "https://github.com/firattamurcw/app-reviews"
+Issues = "https://github.com/firattamurcw/app-reviews/issues"
+
+[dependency-groups]
+dev = [
+    "pytest==9.0.2",
+    "pytest-cov==7.1.0",
+    "pytest-asyncio==1.3.0",
+    "mypy==1.20.0",
+    "ruff==0.15.8",
+    "pre-commit==4.5.1",
+    "textual==8.2.1",
+    "mkdocs-material>=9.6",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app_reviews"]
+
+[tool.mypy]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = ["live: live E2E tests that hit real store endpoints (skipped by default)"]
+addopts = "-m 'not live'"
+
+[tool.coverage.run]
+source = ["app_reviews"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 75
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]
