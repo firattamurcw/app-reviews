@@ -82,6 +82,12 @@ make test
 
 See the [Contributing Guide](https://firattamurcw.github.io/app-reviews/contributing/) for details.
 
+## Community
+
+- **[Code of Conduct](CODE_OF_CONDUCT.md)** – our standards for participation
+- **[Security Policy](SECURITY.md)** – how to report vulnerabilities
+- **[Contributing](https://firattamurcw.github.io/app-reviews/contributing/)** – how to submit changes
+
 ## License
 
 [MIT](LICENSE)
