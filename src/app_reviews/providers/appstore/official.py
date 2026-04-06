@@ -17,16 +17,13 @@ CONNECT_REVIEWS_URL_TEMPLATE = (
 )
 
 
-def _map_entry(entry: dict[str, Any], app_id: str, app_input: str) -> Review:
+def _map_entry(entry: dict[str, Any], app_id: str) -> Review:
     source_review_id: str = entry["id"]
     attrs: dict[str, Any] = entry["attributes"]
 
     return Review(
         store="appstore",
-        review_id=f"appstore_official-{source_review_id}",
-        canonical_key=f"{app_id}-{source_review_id}",
         app_id=app_id,
-        app_input=app_input,
         country=attrs.get("territory", ""),
         rating=int(attrs["rating"]),
         title=attrs["title"],
@@ -34,9 +31,9 @@ def _map_entry(entry: dict[str, Any], app_id: str, app_input: str) -> Review:
         author_name=attrs["reviewerNickname"],
         created_at=datetime.fromisoformat(attrs["createdDate"]),
         source="appstore_official",
-        source_review_id=source_review_id,
-        source_payload=entry,
+        raw=entry,
         fetched_at=datetime.now(tz=UTC),
+        id=f"appstore_official-{source_review_id}",
     )
 
 
@@ -54,7 +51,7 @@ class ConnectProvider:
         self._auth_header = auth_header
         self._timeout = timeout
 
-    def fetch(self, app_id: str, app_input: str) -> FetchResult:
+    def fetch(self, app_id: str) -> FetchResult:
         all_reviews: list[Review] = []
         all_failures: list[FetchFailure] = []
         url: str | None = CONNECT_REVIEWS_URL_TEMPLATE.format(app_id=app_id)
@@ -78,7 +75,7 @@ class ConnectProvider:
 
             data = json.loads(response.body)
             for entry in data.get("data", []):
-                all_reviews.append(_map_entry(entry, app_id, app_input))
+                all_reviews.append(_map_entry(entry, app_id))
             url = data.get("links", {}).get("next")
 
         return FetchResult(reviews=all_reviews, failures=all_failures)

@@ -21,17 +21,14 @@ RSS_URL_TEMPLATE = (
 
 
 def _map_entry(
-    entry: dict[str, Any], app_id: str, app_input: str, country: str
+    entry: dict[str, Any], app_id: str, country: str
 ) -> Review:
     source_review_id: str = entry["id"]["label"]
     version: str | None = entry.get("im:version", {}).get("label") or None
 
     return Review(
         store="appstore",
-        review_id=f"appstore_scraper-{source_review_id}",
-        canonical_key=f"{app_id}-{source_review_id}",
         app_id=app_id,
-        app_input=app_input,
         country=country,
         rating=int(entry["im:rating"]["label"]),
         title=clean_text(entry["title"]["label"]),
@@ -40,19 +37,19 @@ def _map_entry(
         app_version=version,
         created_at=datetime.fromisoformat(entry["updated"]["label"]),
         source="appstore_scraper",
-        source_review_id=source_review_id,
-        source_payload=entry,
+        raw=entry,
         fetched_at=datetime.now(tz=UTC),
+        id=f"appstore_scraper-{source_review_id}",
     )
 
 
 def _parse_entries(
-    response: HttpResponse, app_id: str, app_input: str, country: str
+    response: HttpResponse, app_id: str, country: str
 ) -> list[Review]:
     data = json.loads(response.body)
     entries = data.get("feed", {}).get("entry", [])
     return [
-        _map_entry(entry, app_id, app_input, country)
+        _map_entry(entry, app_id, country)
         for entry in entries
         if "im:rating" in entry
     ]
@@ -72,7 +69,7 @@ class RSSProvider:
         self._timeout = timeout
 
     def _fetch_page(
-        self, app_id: str, app_input: str, country: str, page: int
+        self, app_id: str, country: str, page: int
     ) -> FetchResult:
         url = RSS_URL_TEMPLATE.format(country=country, app_id=app_id, page=page)
         try:
@@ -91,15 +88,15 @@ class RSSProvider:
                 ]
             )
 
-        return FetchResult(reviews=_parse_entries(response, app_id, app_input, country))
+        return FetchResult(reviews=_parse_entries(response, app_id, country))
 
-    def fetch(self, app_id: str, app_input: str) -> FetchResult:
+    def fetch(self, app_id: str) -> FetchResult:
         all_reviews: list[Review] = []
         all_failures: list[FetchFailure] = []
 
         for country in self._countries:
             for page in range(1, self._pages + 1):
-                result = self._fetch_page(app_id, app_input, country, page)
+                result = self._fetch_page(app_id, country, page)
                 all_reviews.extend(result.reviews)
                 all_failures.extend(result.failures)
 

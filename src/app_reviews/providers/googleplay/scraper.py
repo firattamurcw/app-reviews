@@ -108,7 +108,7 @@ def _parse_response(
     return [], None
 
 
-def _to_review(entry: list[Any], app_id: str, app_input: str) -> Review | None:
+def _to_review(entry: list[Any], app_id: str) -> Review | None:
     """Parse a single review array into a Review."""
     try:
         review_id = entry[0]
@@ -123,10 +123,7 @@ def _to_review(entry: list[Any], app_id: str, app_input: str) -> Review | None:
 
         return Review(
             store="googleplay",
-            review_id=f"googleplay_scraper-{review_id}",
-            canonical_key=f"{app_id}-{review_id}",
             app_id=app_id,
-            app_input=app_input,
             country="",
             rating=rating,
             title="",
@@ -136,9 +133,9 @@ def _to_review(entry: list[Any], app_id: str, app_input: str) -> Review | None:
             created_at=created_at,
             updated_at=updated_at,
             source="googleplay_scraper",
-            source_review_id=review_id,
-            source_payload=None,
+            raw=None,
             fetched_at=datetime.now(tz=UTC),
+            id=f"googleplay_scraper-{review_id}",
         )
     except (IndexError, TypeError, ValueError):
         return None
@@ -219,7 +216,7 @@ class GoogleScraperProvider:
         self._lang = lang
         self._country = country
 
-    def fetch(self, app_id: str, app_input: str) -> FetchResult:
+    def fetch(self, app_id: str) -> FetchResult:
         all_reviews: list[Review] = []
         all_failures: list[FetchFailure] = []
         page_token: str | None = None
@@ -251,7 +248,7 @@ class GoogleScraperProvider:
 
             entries, next_token = _parse_response(raw)
             for entry in entries:
-                review = _to_review(entry, app_id, app_input)
+                review = _to_review(entry, app_id)
                 if review:
                     all_reviews.append(review)
 
