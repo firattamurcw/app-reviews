@@ -1,5 +1,7 @@
 """Tests for AppStoreReviews and GooglePlayReviews client classes."""
 
+import os
+import sys
 from unittest.mock import patch
 
 from app_reviews.client import AppStoreReviews, GooglePlayReviews
@@ -7,7 +9,6 @@ from app_reviews.models.auth import AppStoreAuth, GooglePlayAuth
 from app_reviews.models.result import FetchResult, FetchStats
 from app_reviews.models.retry import RetryConfig
 
-import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 from conftest import make_review
 

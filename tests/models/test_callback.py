@@ -1,10 +1,12 @@
 """Tests for FetchCallback protocol."""
 
+import os
+import sys
+
 from app_reviews.models.callback import FetchCallback
 from app_reviews.models.result import CountryStatus, FetchFailure, FetchResult
 from app_reviews.models.review import Review
 
-import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from conftest import make_review
 

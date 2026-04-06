@@ -1,11 +1,13 @@
 """Tests for enriched FetchResult."""
 
+import os
+
+# Import make_review from conftest
+import sys
 from datetime import UTC, date, datetime
 
 from app_reviews.models.result import CountryStatus, FetchResult, FetchStats
 
-# Import make_review from conftest
-import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from conftest import make_review
 

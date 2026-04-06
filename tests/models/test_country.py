@@ -18,7 +18,7 @@ def test_country_value_is_lowercase_code():
 
 
 def test_all_group_contains_every_member():
-    assert Country.ALL == frozenset(Country)
+    assert frozenset(Country) == Country.ALL
 
 
 def test_europe_group():
