@@ -5,6 +5,9 @@ on:
     - cron: "0 8 * * *" # Daily at 08:00 UTC
   workflow_dispatch: # Allow manual trigger
 
+permissions:
+  issues: write
+
 jobs:
   e2e:
     runs-on: ubuntu-latest
@@ -22,4 +25,42 @@ jobs:
         run: uv sync --group dev
 
       - name: Run live E2E tests
-        run: uv run python -m pytest tests/e2e/test_live.py -m live -v --tb=short
+        id: e2e
+        run: |
+          set +e
+          uv run python -m pytest tests/e2e/test_live.py -m live -v -s --tb=long 2>&1 | tee e2e_output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Create issue on failure
+        if: steps.e2e.outputs.exit_code != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/scheduled_e2e_test.yml
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          TITLE="E2E Test Failure - $(date -u +'%Y-%m-%d %H:%M UTC')"
+          OUTPUT=$(tail -40 e2e_output.txt)
+
+          cat > issue_body.md << ENDOFBODY
+          ## Scheduled E2E Test Failed
+
+          **Run:** ${RUN_URL}
+          **Branch:** \`${REF_NAME}\`
+          **Triggered by:** \`${EVENT_NAME}\`
+
+          ### Test Output
+
+          \`\`\`
+          ${OUTPUT}
+          \`\`\`
+
+          > This issue was auto-created by the [Scheduled E2E Test](${WORKFLOW_URL}) workflow.
+          ENDOFBODY
+
+          gh issue create --title "$TITLE" --body-file issue_body.md --label "bug,e2e"
+
+      - name: Fail the workflow
+        if: steps.e2e.outputs.exit_code != '0'
+        run: exit 1

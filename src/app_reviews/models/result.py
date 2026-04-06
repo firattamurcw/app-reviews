@@ -5,12 +5,9 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, date, datetime
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 from .review import Review
-
-if TYPE_CHECKING:
-    import pandas as pd
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,7 +126,13 @@ class FetchResult:
             reviews=filtered,
             failures=self.failures,
             warnings=self.warnings,
-            stats=FetchStats(total_reviews=len(filtered)),
+            stats=FetchStats(
+                total_reviews=len(filtered),
+                total_countries=len({r.country for r in filtered}),
+                total_failures=self.stats.total_failures,
+                total_warnings=self.stats.total_warnings,
+                duration_seconds=self.stats.duration_seconds,
+            ),
             countries=self.countries,
             cursor=self.cursor,
             checkpoint=self.checkpoint,
@@ -138,12 +141,6 @@ class FetchResult:
     def to_dicts(self) -> list[dict[str, Any]]:
         """Convert reviews to a list of plain dicts."""
         return [asdict(r) for r in self.reviews]
-
-    def to_df(self) -> pd.DataFrame:
-        """Convert reviews to a pandas DataFrame. Requires pandas."""
-        import pandas as _pd
-
-        return _pd.DataFrame(self.to_dicts())
 
 
 def _to_aware_datetime(d: date | datetime) -> datetime:
