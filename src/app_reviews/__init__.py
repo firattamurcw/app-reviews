@@ -15,27 +15,19 @@ from app_reviews.scraper import AppStoreScraper, GooglePlayScraper
 __version__ = version("app-reviews")
 
 __all__ = [
-    # Clients
-    "AppStoreReviews",
-    "GooglePlayReviews",
-    # Auth
     "AppStoreAuth",
-    "GooglePlayAuth",
-    # Config
-    "RetryConfig",
-    # Enums
+    "AppStoreReviews",
+    "AppStoreScraper",
     "Country",
-    "Sort",
-    # Results
+    "CountryStatus",
+    "FetchCallback",
     "FetchResult",
     "FetchStats",
-    "CountryStatus",
-    "Review",
-    # Callbacks
-    "FetchCallback",
-    # Backwards compat (deprecated)
-    "AppStoreScraper",
+    "GooglePlayAuth",
+    "GooglePlayReviews",
     "GooglePlayScraper",
-    # Meta
+    "RetryConfig",
+    "Review",
+    "Sort",
     "__version__",
 ]

@@ -4,7 +4,10 @@ from enum import StrEnum
 
 
 class Country(StrEnum):
-    """iTunes-supported countries as a StrEnum (values are lowercase ISO 3166-1 alpha-2 codes)."""
+    """iTunes-supported countries as a StrEnum.
+
+    Values are lowercase ISO 3166-1 alpha-2 codes.
+    """
 
     AE = "ae"
     AG = "ag"

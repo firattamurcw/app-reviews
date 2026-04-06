@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import date, datetime
-from typing import Any, Callable
+from typing import Any
 
 from app_reviews.core.execution import execute_fetch
 from app_reviews.models.auth import AppStoreAuth, GooglePlayAuth
 from app_reviews.models.config import ReviewConfig
 from app_reviews.models.proxy import ProxyConfig
-from app_reviews.models.result import FetchResult, FetchStats
+from app_reviews.models.result import FetchResult
 from app_reviews.models.retry import RetryConfig
 from app_reviews.models.review import Review
 from app_reviews.models.sort import Sort
