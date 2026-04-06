@@ -24,7 +24,7 @@ def export_jsonl(
     for r in reviews:
         d = dataclasses.asdict(r)
         if not include_raw:
-            d.pop("source_payload", None)
+            d.pop("raw", None)
         lines.append(json.dumps(d, default=str))
 
     text = "\n".join(lines) + "\n"

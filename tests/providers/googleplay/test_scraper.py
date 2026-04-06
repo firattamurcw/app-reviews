@@ -43,7 +43,7 @@ _RAW_RESPONSE_LAST = ")]}'\n\n" + json.dumps(
 
 class TestToReview:
     def test_parses_valid_entry(self) -> None:
-        review = _to_review(_REVIEW_ENTRY, "com.example", "com.example")
+        review = _to_review(_REVIEW_ENTRY, "com.example")
         assert review is not None
         assert review.store == "googleplay"
         assert review.source == "googleplay_scraper"
@@ -54,7 +54,7 @@ class TestToReview:
         assert review.app_id == "com.example"
 
     def test_returns_none_for_invalid_entry(self) -> None:
-        result = _to_review([], "com.example", "com.example")
+        result = _to_review([], "com.example")
         assert result is None
 
 
@@ -95,7 +95,7 @@ class TestGoogleScraperProvider:
         mock_post.return_value = HttpResponse(status=200, body=_RAW_RESPONSE_LAST)
 
         provider = GoogleScraperProvider()
-        result = provider.fetch("com.example", "com.example")
+        result = provider.fetch("com.example")
 
         assert len(result.reviews) == 1
         assert result.reviews[0].store == "googleplay"
@@ -111,7 +111,7 @@ class TestGoogleScraperProvider:
         ]
 
         provider = GoogleScraperProvider()
-        result = provider.fetch("com.example", "com.example")
+        result = provider.fetch("com.example")
 
         assert len(result.reviews) == 2
         assert mock_post.call_count == 2
@@ -123,7 +123,7 @@ class TestGoogleScraperProvider:
         mock_post.side_effect = urllib.error.URLError("timeout")
 
         provider = GoogleScraperProvider(max_retries=1)
-        result = provider.fetch("com.example", "com.example")
+        result = provider.fetch("com.example")
 
         assert len(result.reviews) == 0
         assert len(result.failures) == 1
@@ -133,7 +133,7 @@ class TestGoogleScraperProvider:
         mock_post.return_value = HttpResponse(status=503, body="error")
 
         provider = GoogleScraperProvider(max_retries=1)
-        result = provider.fetch("com.example", "com.example")
+        result = provider.fetch("com.example")
 
         assert len(result.reviews) == 0
         assert len(result.failures) == 1
@@ -143,7 +143,7 @@ class TestGoogleScraperProvider:
         mock_post.return_value = HttpResponse(status=200, body=")]}'\n\n[]")
 
         provider = GoogleScraperProvider()
-        result = provider.fetch("com.example", "com.example")
+        result = provider.fetch("com.example")
 
         assert len(result.reviews) == 0
         assert len(result.failures) == 0
@@ -168,7 +168,7 @@ class TestGoogleScraperProvider:
         ]
 
         provider = GoogleScraperProvider(max_retries=2)
-        result = provider.fetch("com.example", "com.example")
+        result = provider.fetch("com.example")
 
         assert len(result.reviews) == 1
         mock_sleep.assert_called_once_with(5.0)
@@ -178,7 +178,7 @@ class TestGoogleScraperProvider:
         mock_post.return_value = HttpResponse(status=200, body=_RAW_RESPONSE_LAST)
 
         provider = GoogleScraperProvider(lang="de", country="de")
-        provider.fetch("com.example", "com.example")
+        provider.fetch("com.example")
 
         call_url = mock_post.call_args[0][0]
         assert "hl=de" in call_url

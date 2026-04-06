@@ -10,8 +10,8 @@ from typing import Any
 from unittest.mock import patch
 
 from app_reviews.models.review import Review
-from app_reviews.providers.appstore.connect import ConnectProvider
-from app_reviews.providers.appstore.rss import RSSProvider
+from app_reviews.providers.appstore.official import ConnectProvider
+from app_reviews.providers.appstore.scraper import RSSProvider
 from app_reviews.utils.http import HttpResponse
 
 # ── RSS fixtures ─────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ def _connect_response(
 class TestRssProvider:
     """Fetching from RSS returns normalized Review objects."""
 
-    @patch("app_reviews.providers.appstore.rss.http_get")
+    @patch("app_reviews.providers.appstore.scraper.http_get")
     def test_returns_normalized_reviews(self, mock_get: Any) -> None:
         entry = _rss_entry(
             review_id="42",
@@ -101,7 +101,7 @@ class TestRssProvider:
         mock_get.return_value = _rss_response([entry])
 
         provider = RSSProvider(countries=["jp"])
-        result = provider.fetch("99999", "99999")
+        result = provider.fetch("99999")
 
         assert len(result.reviews) == 1
         review = result.reviews[0]
@@ -114,11 +114,8 @@ class TestRssProvider:
         assert review.author_name == "Bob"
         assert review.app_version == "2.1"
         assert review.source == "appstore_scraper"
-        assert review.source_review_id == "42"
-        assert review.canonical_key == "99999-42"
-        assert review.review_id == "appstore_scraper-42"
 
-    @patch("app_reviews.providers.appstore.rss.http_get")
+    @patch("app_reviews.providers.appstore.scraper.http_get")
     def test_multiple_countries_fetch_independently(self, mock_get: Any) -> None:
         calls: list[str] = []
 
@@ -129,14 +126,14 @@ class TestRssProvider:
         mock_get.side_effect = side_effect
 
         provider = RSSProvider(countries=["us", "gb", "jp"])
-        result = provider.fetch("12345", "12345")
+        result = provider.fetch("12345")
 
         assert len(result.reviews) == 3
         assert any("/us/" in c for c in calls)
         assert any("/gb/" in c for c in calls)
         assert any("/jp/" in c for c in calls)
 
-    @patch("app_reviews.providers.appstore.rss.http_get")
+    @patch("app_reviews.providers.appstore.scraper.http_get")
     def test_pagination_fetches_multiple_pages(self, mock_get: Any) -> None:
         calls: list[str] = []
 
@@ -147,37 +144,37 @@ class TestRssProvider:
         mock_get.side_effect = side_effect
 
         provider = RSSProvider(countries=["us"], pages=2)
-        result = provider.fetch("12345", "12345")
+        result = provider.fetch("12345")
 
         assert len(calls) == 2
         assert any("page=1" in c for c in calls)
         assert any("page=2" in c for c in calls)
         assert len(result.reviews) == 2
 
-    @patch("app_reviews.providers.appstore.rss.http_get")
+    @patch("app_reviews.providers.appstore.scraper.http_get")
     def test_http_error_becomes_failure(self, mock_get: Any) -> None:
         mock_get.return_value = HttpResponse(status=503, body="Service Unavailable")
 
         provider = RSSProvider(countries=["us"])
-        result = provider.fetch("12345", "12345")
+        result = provider.fetch("12345")
 
         assert result.reviews == []
         assert len(result.failures) == 1
         assert result.failures[0].provider == "scraper"
 
-    @patch("app_reviews.providers.appstore.rss.http_get")
+    @patch("app_reviews.providers.appstore.scraper.http_get")
     def test_connection_error_becomes_failure(self, mock_get: Any) -> None:
         import urllib.error
 
         mock_get.side_effect = urllib.error.URLError("connection refused")
 
         provider = RSSProvider(countries=["us"])
-        result = provider.fetch("12345", "12345")
+        result = provider.fetch("12345")
 
         assert result.reviews == []
         assert len(result.failures) == 1
 
-    @patch("app_reviews.providers.appstore.rss.http_get")
+    @patch("app_reviews.providers.appstore.scraper.http_get")
     def test_partial_failure_across_countries(self, mock_get: Any) -> None:
         def side_effect(url: str, **kwargs: Any) -> HttpResponse:
             if "/gb/" in url:
@@ -187,19 +184,19 @@ class TestRssProvider:
         mock_get.side_effect = side_effect
 
         provider = RSSProvider(countries=["us", "gb"])
-        result = provider.fetch("12345", "12345")
+        result = provider.fetch("12345")
 
         assert len(result.reviews) == 1
         assert result.reviews[0].country == "us"
         assert len(result.failures) == 1
         assert result.failures[0].country == "gb"
 
-    @patch("app_reviews.providers.appstore.rss.http_get")
+    @patch("app_reviews.providers.appstore.scraper.http_get")
     def test_empty_feed_returns_no_reviews(self, mock_get: Any) -> None:
         mock_get.return_value = _rss_response([])
 
         provider = RSSProvider(countries=["us"])
-        result = provider.fetch("12345", "12345")
+        result = provider.fetch("12345")
 
         assert result.reviews == []
         assert result.failures == []
@@ -211,7 +208,7 @@ class TestRssProvider:
 class TestConnectProvider:
     """Fetching from Connect API returns normalized Review objects."""
 
-    @patch("app_reviews.providers.appstore.connect.http_get")
+    @patch("app_reviews.providers.appstore.official.http_get")
     def test_returns_normalized_reviews(self, mock_get: Any) -> None:
         entry = _connect_entry(
             review_id="xyz-789",
@@ -224,7 +221,7 @@ class TestConnectProvider:
         mock_get.return_value = _connect_response([entry])
 
         provider = ConnectProvider("Bearer fake")
-        result = provider.fetch("55555", "55555")
+        result = provider.fetch("55555")
 
         assert len(result.reviews) == 1
         review = result.reviews[0]
@@ -236,11 +233,8 @@ class TestConnectProvider:
         assert review.body == "Works well"
         assert review.author_name == "Charlie"
         assert review.source == "appstore_official"
-        assert review.source_review_id == "xyz-789"
-        assert review.canonical_key == "55555-xyz-789"
-        assert review.review_id == "appstore_official-xyz-789"
 
-    @patch("app_reviews.providers.appstore.connect.http_get")
+    @patch("app_reviews.providers.appstore.official.http_get")
     def test_pagination_follows_next_link(self, mock_get: Any) -> None:
         call_count = 0
 
@@ -257,12 +251,12 @@ class TestConnectProvider:
         mock_get.side_effect = side_effect
 
         provider = ConnectProvider("Bearer fake")
-        result = provider.fetch("12345", "12345")
+        result = provider.fetch("12345")
 
         assert call_count == 2
         assert len(result.reviews) == 2
 
-    @patch("app_reviews.providers.appstore.connect.http_get")
+    @patch("app_reviews.providers.appstore.official.http_get")
     def test_auth_header_is_sent(self, mock_get: Any) -> None:
         captured: dict[str, str] = {}
 
@@ -273,39 +267,39 @@ class TestConnectProvider:
         mock_get.side_effect = side_effect
 
         provider = ConnectProvider("Bearer my-jwt")
-        provider.fetch("12345", "12345")
+        provider.fetch("12345")
 
         assert captured["Authorization"] == "Bearer my-jwt"
 
-    @patch("app_reviews.providers.appstore.connect.http_get")
+    @patch("app_reviews.providers.appstore.official.http_get")
     def test_http_error_becomes_failure(self, mock_get: Any) -> None:
         mock_get.return_value = HttpResponse(status=401, body="Unauthorized")
 
         provider = ConnectProvider("Bearer bad")
-        result = provider.fetch("12345", "12345")
+        result = provider.fetch("12345")
 
         assert result.reviews == []
         assert len(result.failures) == 1
         assert result.failures[0].provider == "official"
 
-    @patch("app_reviews.providers.appstore.connect.http_get")
+    @patch("app_reviews.providers.appstore.official.http_get")
     def test_connection_error_becomes_failure(self, mock_get: Any) -> None:
         import urllib.error
 
         mock_get.side_effect = urllib.error.URLError("refused")
 
         provider = ConnectProvider("Bearer fake")
-        result = provider.fetch("12345", "12345")
+        result = provider.fetch("12345")
 
         assert result.reviews == []
         assert len(result.failures) == 1
 
-    @patch("app_reviews.providers.appstore.connect.http_get")
+    @patch("app_reviews.providers.appstore.official.http_get")
     def test_empty_response_returns_no_reviews(self, mock_get: Any) -> None:
         mock_get.return_value = _connect_response([])
 
         provider = ConnectProvider("Bearer fake")
-        result = provider.fetch("12345", "12345")
+        result = provider.fetch("12345")
 
         assert result.reviews == []
         assert result.failures == []

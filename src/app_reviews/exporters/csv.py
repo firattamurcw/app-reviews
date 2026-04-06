@@ -10,12 +10,9 @@ from pathlib import Path
 from app_reviews.models.review import Review
 
 _CSV_FIELDS: list[str] = [
-    "review_id",
-    "canonical_key",
+    "id",
     "app_id",
-    "app_input",
     "country",
-    "locale",
     "language",
     "rating",
     "title",
@@ -26,7 +23,6 @@ _CSV_FIELDS: list[str] = [
     "updated_at",
     "is_edited",
     "source",
-    "source_review_id",
     "fetched_at",
 ]
 

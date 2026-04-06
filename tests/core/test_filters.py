@@ -12,10 +12,8 @@ def _review(rating: int, created_at: datetime | None = None) -> Review:
     ts = created_at or datetime(2024, 3, 15, tzinfo=UTC)
     return Review(
         store="appstore",
-        review_id=f"scraper-{rating}-{ts.isoformat()}",
-        canonical_key=f"12345-scraper-{rating}-{ts.isoformat()}",
+        id=f"scraper-{rating}-{ts.isoformat()}",
         app_id="12345",
-        app_input="12345",
         country="us",
         rating=rating,
         title=f"Rating {rating}",
@@ -23,7 +21,6 @@ def _review(rating: int, created_at: datetime | None = None) -> Review:
         author_name="Alice",
         created_at=ts,
         source="appstore_scraper",
-        source_review_id=f"{rating}",
         fetched_at=datetime(2024, 3, 16, tzinfo=UTC),
     )
 

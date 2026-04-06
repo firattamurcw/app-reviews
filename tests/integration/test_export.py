@@ -14,16 +14,13 @@ from app_reviews.exporters.jsonl import export_jsonl
 from app_reviews.models.review import Review
 
 
-def _make_review(review_id: str = "1") -> Review:
+def _make_review(id: str = "1") -> Review:
     """A fully-populated review for round-trip testing."""
     return Review(
         store="appstore",
-        review_id=f"scraper-{review_id}",
-        canonical_key=f"app-{review_id}",
+        id=f"scraper-{id}",
         app_id="12345",
-        app_input="12345",
         country="us",
-        locale="en_US",
         language="en",
         rating=4,
         title="Great app",
@@ -34,8 +31,7 @@ def _make_review(review_id: str = "1") -> Review:
         updated_at=datetime(2024, 3, 16, 12, 0, 0, tzinfo=UTC),
         is_edited=True,
         source="appstore_scraper",
-        source_review_id=review_id,
-        source_payload={"raw": "data"},
+        raw={"raw": "data"},
         fetched_at=datetime(2024, 3, 17, 8, 0, 0, tzinfo=UTC),
     )
 
@@ -50,8 +46,7 @@ class TestJsonExportRoundTrip:
         assert len(parsed) == 2
         for i, row in enumerate(parsed):
             original = reviews[i]
-            assert row["review_id"] == original.review_id
-            assert row["canonical_key"] == original.canonical_key
+            assert row["id"] == original.id
             assert row["app_id"] == original.app_id
             assert row["country"] == original.country
             assert row["rating"] == original.rating
@@ -60,14 +55,13 @@ class TestJsonExportRoundTrip:
             assert row["author_name"] == original.author_name
             assert row["app_version"] == original.app_version
             assert row["source"] == original.source
-            assert row["source_review_id"] == original.source_review_id
-            assert row["source_payload"] == original.source_payload
+            assert row["raw"] == original.raw
 
-    def test_source_payload_excluded_by_default(self) -> None:
+    def test_raw_excluded_by_default(self) -> None:
         """Default export strips raw payload for cleaner output."""
         text = export_json([_make_review()])
         parsed = json.loads(text)
-        assert "source_payload" not in parsed[0]
+        assert "raw" not in parsed[0]
 
     def test_empty_list_produces_empty_array(self) -> None:
         text = export_json([])
@@ -85,16 +79,16 @@ class TestJsonlExportRoundTrip:
         for i, line in enumerate(lines):
             row = json.loads(line)
             original = reviews[i]
-            assert row["review_id"] == original.review_id
+            assert row["id"] == original.id
             assert row["rating"] == original.rating
             assert row["title"] == original.title
             assert row["body"] == original.body
-            assert row["source_payload"] == original.source_payload
+            assert row["raw"] == original.raw
 
-    def test_source_payload_excluded_by_default(self) -> None:
+    def test_raw_excluded_by_default(self) -> None:
         text = export_jsonl([_make_review()])
         row = json.loads(text.strip())
-        assert "source_payload" not in row
+        assert "raw" not in row
 
     def test_empty_list_produces_empty_string(self) -> None:
         assert export_jsonl([]) == ""
@@ -111,8 +105,7 @@ class TestCsvExportRoundTrip:
         assert len(rows) == 2
         for i, row in enumerate(rows):
             original = reviews[i]
-            assert row["review_id"] == original.review_id
-            assert row["canonical_key"] == original.canonical_key
+            assert row["id"] == original.id
             assert row["app_id"] == original.app_id
             assert row["country"] == original.country
             assert row["rating"] == str(original.rating)

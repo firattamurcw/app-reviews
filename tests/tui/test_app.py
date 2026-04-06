@@ -10,13 +10,11 @@ from app_reviews.models.review import Review
 from app_reviews.tui.app import ReviewApp
 
 
-def _make_review(review_id: str = "scraper-123", rating: int = 5) -> Review:
+def _make_review(id: str = "scraper-123", rating: int = 5) -> Review:
     return Review(
         store="appstore",
-        review_id=review_id,
-        canonical_key=f"12345-{review_id}",
+        id=id,
         app_id="12345",
-        app_input="12345",
         country="us",
         rating=rating,
         title="Great app",
@@ -24,7 +22,6 @@ def _make_review(review_id: str = "scraper-123", rating: int = 5) -> Review:
         author_name="Alice",
         created_at=datetime(2024, 3, 15, tzinfo=UTC),
         source="appstore_scraper",
-        source_review_id="123",
         fetched_at=datetime(2024, 3, 16, tzinfo=UTC),
     )
 

@@ -20,10 +20,8 @@ def _dt(offset_seconds: int = 0) -> datetime:
 
 def _make_review(
     *,
-    review_id: str = "r1",
-    canonical_key: str = "app1::scraper::r1",
+    id: str = "r1",
     app_id: str = "app1",
-    app_input: str = "app1",
     country: str = "us",
     rating: int = 5,
     title: str = "Great",
@@ -32,15 +30,12 @@ def _make_review(
     created_at: datetime | None = None,
     updated_at: datetime | None = None,
     source: str = "appstore_scraper",
-    source_review_id: str = "r1",
     fetched_at: datetime | None = None,
 ) -> Review:
     return Review(
         store="appstore",
-        review_id=review_id,
-        canonical_key=canonical_key,
+        id=id,
         app_id=app_id,
-        app_input=app_input,
         country=country,
         rating=rating,
         title=title,
@@ -49,7 +44,6 @@ def _make_review(
         created_at=created_at or _BASE_DT,
         updated_at=updated_at,
         source=source,
-        source_review_id=source_review_id,
         fetched_at=fetched_at or _BASE_DT,
     )
 
@@ -68,20 +62,20 @@ class TestSortReviewsNewestFirst:
         assert sort_reviews_newest_first([r]) == [r]
 
     def test_sorted_descending_by_created_at(self) -> None:
-        r1 = _make_review(review_id="r1", source_review_id="r1", created_at=_dt(0))
-        r2 = _make_review(review_id="r2", source_review_id="r2", created_at=_dt(100))
-        r3 = _make_review(review_id="r3", source_review_id="r3", created_at=_dt(50))
+        r1 = _make_review(id="r1", created_at=_dt(0))
+        r2 = _make_review(id="r2", created_at=_dt(100))
+        r3 = _make_review(id="r3", created_at=_dt(50))
         result = sort_reviews_newest_first([r1, r2, r3])
         assert result == [r2, r3, r1]
 
     def test_already_sorted_unchanged(self) -> None:
-        r1 = _make_review(review_id="r1", source_review_id="r1", created_at=_dt(200))
-        r2 = _make_review(review_id="r2", source_review_id="r2", created_at=_dt(100))
+        r1 = _make_review(id="r1", created_at=_dt(200))
+        r2 = _make_review(id="r2", created_at=_dt(100))
         assert sort_reviews_newest_first([r1, r2]) == [r1, r2]
 
     def test_does_not_mutate_original_list(self) -> None:
-        r1 = _make_review(review_id="r1", source_review_id="r1", created_at=_dt(0))
-        r2 = _make_review(review_id="r2", source_review_id="r2", created_at=_dt(100))
+        r1 = _make_review(id="r1", created_at=_dt(0))
+        r2 = _make_review(id="r2", created_at=_dt(100))
         original = [r1, r2]
         sort_reviews_newest_first(original)
         assert original == [r1, r2]
@@ -106,27 +100,21 @@ class TestDedupeReviewsEdgeCases:
 # ---------------------------------------------------------------------------
 
 
-class TestDedupeNoopOnUniqueCanonicaKeys:
-    def test_unique_keys_pass_through_unchanged_and_sorted(self) -> None:
+class TestDedupeNoopOnUniqueIds:
+    def test_unique_ids_pass_through_unchanged_and_sorted(self) -> None:
         # Use distinct authors so the heuristic does NOT merge these reviews.
         r1 = _make_review(
-            review_id="r1",
-            canonical_key="app1::scraper::r1",
-            source_review_id="r1",
+            id="r1",
             author_name="Alice",
             created_at=_dt(0),
         )
         r2 = _make_review(
-            review_id="r2",
-            canonical_key="app1::scraper::r2",
-            source_review_id="r2",
+            id="r2",
             author_name="Bob",
             created_at=_dt(100),
         )
         r3 = _make_review(
-            review_id="r3",
-            canonical_key="app1::scraper::r3",
-            source_review_id="r3",
+            id="r3",
             author_name="Carol",
             created_at=_dt(50),
         )
@@ -136,25 +124,20 @@ class TestDedupeNoopOnUniqueCanonicaKeys:
 
 
 # ---------------------------------------------------------------------------
-# dedupe_reviews — exact canonical_key dedupe
+# dedupe_reviews — exact id dedupe
 # ---------------------------------------------------------------------------
 
 
-class TestDedupeExactCanonicalKey:
-    def test_keeps_latest_updated_at_for_same_key(self) -> None:
-        key = "app1::scraper::r1"
+class TestDedupeExactId:
+    def test_keeps_latest_updated_at_for_same_id(self) -> None:
         older = _make_review(
-            review_id="r1-us",
-            canonical_key=key,
-            source_review_id="r1",
+            id="r1",
             country="us",
             created_at=_dt(0),
             updated_at=_dt(10),
         )
         newer = _make_review(
-            review_id="r1-gb",
-            canonical_key=key,
-            source_review_id="r1",
+            id="r1",
             country="gb",
             created_at=_dt(0),
             updated_at=_dt(200),
@@ -164,18 +147,13 @@ class TestDedupeExactCanonicalKey:
         assert result[0] == newer
 
     def test_falls_back_to_created_at_when_no_updated_at(self) -> None:
-        key = "app1::scraper::r1"
         older = _make_review(
-            review_id="r1-us",
-            canonical_key=key,
-            source_review_id="r1",
+            id="r1",
             country="us",
             created_at=_dt(0),
         )
         newer = _make_review(
-            review_id="r1-gb",
-            canonical_key=key,
-            source_review_id="r1",
+            id="r1",
             country="gb",
             created_at=_dt(100),
         )
@@ -183,13 +161,10 @@ class TestDedupeExactCanonicalKey:
         assert len(result) == 1
         assert result[0] == newer
 
-    def test_three_same_key_keeps_latest(self) -> None:
-        key = "app1::scraper::r1"
+    def test_three_same_id_keeps_latest(self) -> None:
         reviews = [
             _make_review(
-                review_id=f"r1-{c}",
-                canonical_key=key,
-                source_review_id="r1",
+                id="r1",
                 country=c,
                 created_at=_dt(i * 10),
             )
@@ -206,19 +181,14 @@ class TestDedupeExactCanonicalKey:
 
 
 class TestDedupeOfficialPreferredOverScraper:
-    def test_official_preferred_for_same_canonical_key(self) -> None:
-        key = "app1::shared::r1"
+    def test_official_preferred_for_same_id(self) -> None:
         scraper_review = _make_review(
-            review_id="r1-scraper",
-            canonical_key=key,
-            source_review_id="r1",
+            id="r1",
             source="appstore_scraper",
             created_at=_dt(0),
         )
         official_review = _make_review(
-            review_id="r1-official",
-            canonical_key=key,
-            source_review_id="r1",
+            id="r1",
             source="appstore_official",
             created_at=_dt(0),
         )
@@ -227,18 +197,13 @@ class TestDedupeOfficialPreferredOverScraper:
         assert result[0].source == "appstore_official"
 
     def test_official_preferred_regardless_of_order(self) -> None:
-        key = "app1::shared::r1"
         official_review = _make_review(
-            review_id="r1-official",
-            canonical_key=key,
-            source_review_id="r1",
+            id="r1",
             source="appstore_official",
             created_at=_dt(0),
         )
         scraper_review = _make_review(
-            review_id="r1-scraper",
-            canonical_key=key,
-            source_review_id="r1",
+            id="r1",
             source="appstore_scraper",
             created_at=_dt(200),
         )
@@ -269,22 +234,16 @@ class TestDedupeContentTimeHeuristic:
         source_b: str = "appstore_scraper",
     ) -> tuple[Review, Review]:
         a = _make_review(
-            review_id="ra",
-            canonical_key="app1::scraper::ra",
-            source_review_id="ra",
+            id="ra",
             app_id=app_id_a,
-            app_input=app_id_a,
             author_name=author_a,
             rating=rating_a,
             created_at=_dt(dt_offset_a),
             source=source_a,
         )
         b = _make_review(
-            review_id="rb",
-            canonical_key="app1::scraper::rb",
-            source_review_id="rb",
+            id="rb",
             app_id=app_id_b,
-            app_input=app_id_b,
             author_name=author_b,
             rating=rating_b,
             created_at=_dt(dt_offset_b),
@@ -347,9 +306,7 @@ class TestDedupeOutputSortedNewestFirst:
     def test_output_sorted_descending(self) -> None:
         reviews = [
             _make_review(
-                review_id=f"r{i}",
-                canonical_key=f"app1::scraper::r{i}",
-                source_review_id=f"r{i}",
+                id=f"r{i}",
                 created_at=_dt(i * 100),
             )
             for i in range(5)

@@ -36,7 +36,7 @@ def _rss_response(url: str, **kwargs: Any) -> HttpResponse:
 
 
 class TestEndToEndSync:
-    @patch("app_reviews.providers.appstore.rss.http_get")
+    @patch("app_reviews.providers.appstore.scraper.http_get")
     def test_scraper_fetch_and_export_json(self, mock_get: Any) -> None:
         """Full flow: scraper -> fetch -> JSON export."""
         mock_get.side_effect = _rss_response
@@ -53,7 +53,7 @@ class TestEndToEndSync:
         parsed = json.loads(text)
         assert len(parsed) == 3
 
-    @patch("app_reviews.providers.appstore.rss.http_get")
+    @patch("app_reviews.providers.appstore.scraper.http_get")
     def test_scraper_fetch_and_export_jsonl(self, mock_get: Any) -> None:
         mock_get.side_effect = _rss_response
 
@@ -67,7 +67,7 @@ class TestEndToEndSync:
             obj = json.loads(line)
             assert obj["app_id"] == "99999"
 
-    @patch("app_reviews.providers.appstore.rss.http_get")
+    @patch("app_reviews.providers.appstore.scraper.http_get")
     def test_scraper_fetch_and_export_csv(self, mock_get: Any) -> None:
         mock_get.side_effect = _rss_response
 
@@ -75,10 +75,10 @@ class TestEndToEndSync:
         result = scraper.fetch()
 
         text = export_csv(result.reviews)
-        assert "review_id" in text
+        assert "app_id" in text
         assert "99999" in text
 
-    @patch("app_reviews.providers.appstore.rss.http_get")
+    @patch("app_reviews.providers.appstore.scraper.http_get")
     def test_partial_failure_flow(self, mock_get: Any) -> None:
         """Partial failures don't crash the pipeline."""
 
