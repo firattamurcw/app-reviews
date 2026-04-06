@@ -1,6 +1,6 @@
 """Retry configuration model."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True, slots=True)
@@ -10,6 +10,7 @@ class RetryConfig:
     max_retries: int = 3
     backoff_factor: float = 0.5
     timeout: float = 30.0
+    retry_on: list[int] = field(default_factory=lambda: [429, 503])
 
     def __post_init__(self) -> None:
         if self.max_retries < 0:
