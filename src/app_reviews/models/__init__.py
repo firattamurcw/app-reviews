@@ -5,16 +5,21 @@ from __future__ import annotations
 from typing import Any
 
 from app_reviews.models.auth import (
+    AppStoreAuth,
     AppStoreAuthConfig,
     ConnectCredentials,
+    GooglePlayAuth,
     GooglePlayAuthConfig,
 )
+from app_reviews.models.callback import FetchCallback
 from app_reviews.models.checkpoint import CheckpointConfig
 from app_reviews.models.config import ReviewConfig
+from app_reviews.models.country import Country
 from app_reviews.models.export import ExportConfig
 from app_reviews.models.metadata import AppMetadata
 from app_reviews.models.proxy import ProxyConfig
 from app_reviews.models.result import (
+    CountryStatus,
     FetchFailure,
     FetchResult,
     FetchStats,
@@ -22,6 +27,7 @@ from app_reviews.models.result import (
 )
 from app_reviews.models.retry import RetryConfig
 from app_reviews.models.review import Review
+from app_reviews.models.sort import Sort
 
 
 def load_config(overrides: dict[str, Any] | None = None) -> ReviewConfig:
@@ -29,7 +35,6 @@ def load_config(overrides: dict[str, Any] | None = None) -> ReviewConfig:
     if not overrides:
         return ReviewConfig()
 
-    # Handle nested config objects
     raw = dict(overrides)
     nested_map = {
         "proxy": ProxyConfig,
@@ -46,18 +51,24 @@ def load_config(overrides: dict[str, Any] | None = None) -> ReviewConfig:
 
 __all__ = [
     "AppMetadata",
+    "AppStoreAuth",
     "AppStoreAuthConfig",
     "CheckpointConfig",
     "ConnectCredentials",
+    "Country",
+    "CountryStatus",
     "ExportConfig",
+    "FetchCallback",
     "FetchFailure",
     "FetchResult",
     "FetchStats",
     "FetchWarning",
+    "GooglePlayAuth",
     "GooglePlayAuthConfig",
     "ProxyConfig",
     "RetryConfig",
     "Review",
     "ReviewConfig",
+    "Sort",
     "load_config",
 ]
