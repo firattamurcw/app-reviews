@@ -478,16 +478,14 @@ metadata = lookup_metadata("com.example.app", store="googleplay")
 
 ## Legacy API
 
-The old class names still work but emit a deprecation warning. Update your code when convenient.
-
 ```python
-# Deprecated — use AppStoreReviews instead
-from app_reviews import AppStoreScraper
-scraper = AppStoreScraper(app_id="123456789", countries=["us"])
-result = scraper.fetch()
+from app_reviews import AppStoreReviews
 
-# Deprecated — use GooglePlayReviews instead
-from app_reviews import GooglePlayScraper
-scraper = GooglePlayScraper(app_id="com.example.app")
-result = scraper.fetch()
+client = AppStoreReviews()
+result = client.fetch("123456789", countries=["us"])
+
+from app_reviews import GooglePlayReviews
+
+client = GooglePlayReviews()
+result = client.fetch("com.example.app")
 ```

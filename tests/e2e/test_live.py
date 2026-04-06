@@ -9,7 +9,7 @@ Run manually with: pytest tests/e2e/test_live.py -m live
 
 import pytest
 
-from app_reviews import AppStoreScraper, GooglePlayScraper, Review
+from app_reviews import AppStoreReviews, GooglePlayReviews, Review
 
 # A well-known, stable app that is unlikely to be removed.
 APPLE_APP_ID = "364709193"  # iBooks / Apple Books
@@ -21,8 +21,8 @@ pytestmark = pytest.mark.live
 
 class TestLiveAppStore:
     def test_fetch_returns_reviews(self) -> None:
-        scraper = AppStoreScraper(app_id=APPLE_APP_ID, countries=["us"])
-        result = scraper.fetch()
+        client = AppStoreReviews()
+        result = client.fetch(APPLE_APP_ID, countries=["us"])
 
         assert len(result.reviews) > 0, "Expected at least one review from App Store"
         assert result.failures == [], f"Unexpected failures: {result.failures}"
@@ -38,8 +38,8 @@ class TestLiveAppStore:
         assert review.author_name != ""
 
     def test_fetch_multiple_countries(self) -> None:
-        scraper = AppStoreScraper(app_id=APPLE_APP_ID, countries=["us", "gb"])
-        result = scraper.fetch()
+        client = AppStoreReviews()
+        result = client.fetch(APPLE_APP_ID, countries=["us", "gb"])
 
         assert len(result.reviews) > 0
         assert result.stats.total_countries >= 1
@@ -47,8 +47,8 @@ class TestLiveAppStore:
 
 class TestLiveGooglePlay:
     def test_fetch_returns_reviews(self) -> None:
-        scraper = GooglePlayScraper(app_id=GOOGLE_APP_ID, countries=["us"])
-        result = scraper.fetch()
+        client = GooglePlayReviews()
+        result = client.fetch(GOOGLE_APP_ID, countries=["us"])
 
         assert len(result.reviews) > 0, "Expected at least one review from Google Play"
         assert result.failures == [], f"Unexpected failures: {result.failures}"
@@ -63,7 +63,7 @@ class TestLiveGooglePlay:
         assert review.author_name != ""
 
     def test_fetch_multiple_countries(self) -> None:
-        scraper = GooglePlayScraper(app_id=GOOGLE_APP_ID, countries=["us", "gb"])
-        result = scraper.fetch()
+        client = GooglePlayReviews()
+        result = client.fetch(GOOGLE_APP_ID, countries=["us", "gb"])
 
         assert len(result.reviews) > 0

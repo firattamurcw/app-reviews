@@ -51,7 +51,7 @@ uv sync --group dev
 After installing, check that it works:
 
 ```bash
-python -c "from app_reviews import AppStoreScraper; print('OK')"
+python -c "from app_reviews import AppStoreReviews; print('OK')"
 ```
 
 Or check the CLI:

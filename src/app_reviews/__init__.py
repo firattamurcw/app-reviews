@@ -10,14 +10,12 @@ from app_reviews.models.result import CountryStatus, FetchResult, FetchStats
 from app_reviews.models.retry import RetryConfig
 from app_reviews.models.review import Review
 from app_reviews.models.sort import Sort
-from app_reviews.scraper import AppStoreScraper, GooglePlayScraper
 
 __version__ = version("app-reviews")
 
 __all__ = [
     "AppStoreAuth",
     "AppStoreReviews",
-    "AppStoreScraper",
     "Country",
     "CountryStatus",
     "FetchCallback",
@@ -25,7 +23,6 @@ __all__ = [
     "FetchStats",
     "GooglePlayAuth",
     "GooglePlayReviews",
-    "GooglePlayScraper",
     "RetryConfig",
     "Review",
     "Sort",

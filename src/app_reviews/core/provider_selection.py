@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app_reviews.models.auth import AppStoreAuthConfig, GooglePlayAuthConfig
+from app_reviews.models.auth import AppStoreAuth, GooglePlayAuth
 from app_reviews.models.types import (
     AppStoreProvider,
     GooglePlayProvider,
@@ -14,12 +14,12 @@ from app_reviews.models.types import (
 def select_provider(
     store: Store,
     provider: Provider,
-    auth: AppStoreAuthConfig | GooglePlayAuthConfig | None,
+    auth: AppStoreAuth | GooglePlayAuth | None,
 ) -> AppStoreProvider | GooglePlayProvider:
     """Resolve the effective provider name for a given store."""
     if store == "appstore":
         if provider == "auto":
-            return "official" if isinstance(auth, AppStoreAuthConfig) else "scraper"
+            return "official" if isinstance(auth, AppStoreAuth) else "scraper"
         if provider not in ("scraper", "official"):
             raise ValueError(
                 f"Invalid Apple provider {provider!r}."
@@ -28,7 +28,7 @@ def select_provider(
         return provider
     if store == "googleplay":
         if provider == "auto":
-            if isinstance(auth, GooglePlayAuthConfig):
+            if isinstance(auth, GooglePlayAuth):
                 return "official"
             return "scraper"
         if provider not in ("scraper", "official"):

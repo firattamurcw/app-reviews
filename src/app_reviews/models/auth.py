@@ -36,8 +36,3 @@ class ConnectCredentials:
             raise ValueError("private_key must not be empty.")
         if "-----BEGIN" not in self.private_key:
             raise ValueError("private_key must be a PEM-encoded key.")
-
-
-# Backward-compatible aliases
-AppStoreAuthConfig = AppStoreAuth
-GooglePlayAuthConfig = GooglePlayAuth

@@ -6,10 +6,8 @@ from typing import Any
 
 from app_reviews.models.auth import (
     AppStoreAuth,
-    AppStoreAuthConfig,
     ConnectCredentials,
     GooglePlayAuth,
-    GooglePlayAuthConfig,
 )
 from app_reviews.models.callback import FetchCallback
 from app_reviews.models.checkpoint import CheckpointConfig
@@ -52,7 +50,6 @@ def load_config(overrides: dict[str, Any] | None = None) -> ReviewConfig:
 __all__ = [
     "AppMetadata",
     "AppStoreAuth",
-    "AppStoreAuthConfig",
     "CheckpointConfig",
     "ConnectCredentials",
     "Country",
@@ -64,7 +61,6 @@ __all__ = [
     "FetchStats",
     "FetchWarning",
     "GooglePlayAuth",
-    "GooglePlayAuthConfig",
     "ProxyConfig",
     "RetryConfig",
     "Review",

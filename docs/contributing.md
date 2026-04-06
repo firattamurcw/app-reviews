@@ -103,7 +103,7 @@ This runs lint, typecheck, test, and build in order. If any step fails, it stops
 ```
 src/app_reviews/
 ├── __init__.py             # Public API exports
-├── scraper.py              # AppStoreScraper & GooglePlayScraper
+├── client.py               # AppStoreReviews & GooglePlayReviews
 ├── core/                   # Orchestration and utilities
 │   ├── execution.py        # Main fetch orchestration
 │   ├── provider_selection.py

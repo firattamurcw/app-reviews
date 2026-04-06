@@ -31,32 +31,83 @@ pip install app-reviews
 
 ## Quick Start
 
-```python
-from app_reviews import AppStoreReviews, GooglePlayReviews, AppStoreAuth, Country
+### No authentication (public endpoints)
 
-# Apple App Store – Spotify
-client = AppStoreReviews(
-    auth=AppStoreAuth(
-        key_id="ABC123DEF4",
-        issuer_id="12345678-1234-1234-1234-123456789012",
-        key_path="/path/to/AuthKey.p8",
-    )
-)
+```python
+from app_reviews import AppStoreReviews, Country
+
+client = AppStoreReviews()
 result = client.fetch("324684580", countries=[Country.US, Country.GB])
 
 for review in result:
     print(f"[{review.country}] {review.rating}★ {review.title}")
+```
 
-# Reuse the same client for multiple apps
-spotify = client.fetch("324684580")
-instagram = client.fetch("389801252", countries=[Country.US])
+```python
+from app_reviews import GooglePlayReviews, Country
 
-# Google Play Store – Instagram (no auth required)
-gp = GooglePlayReviews()
-result = gp.fetch("com.instagram.android", countries=[Country.US, Country.GB])
+client = GooglePlayReviews()
+result = client.fetch("com.instagram.android", countries=[Country.US])
 
 for review in result:
     print(f"[{review.country}] {review.rating}★ {review.body[:80]}")
+```
+
+### With authentication (official APIs)
+
+```python
+from app_reviews import AppStoreReviews, AppStoreAuth, Country
+
+auth = AppStoreAuth(
+    key_id="ABC123DEF4",
+    issuer_id="12345678-1234-1234-1234-123456789012",
+    key_path="/path/to/AuthKey.p8",
+)
+
+client = AppStoreReviews(auth=auth)
+spotify = client.fetch("324684580", countries=[Country.US, Country.GB])
+instagram = client.fetch("389801252", countries=[Country.US])
+```
+
+```python
+from app_reviews import GooglePlayReviews, GooglePlayAuth, Country
+
+auth = GooglePlayAuth(service_account_path="/path/to/service-account.json")
+
+client = GooglePlayReviews(auth=auth)
+result = client.fetch("com.instagram.android", countries=[Country.US])
+```
+
+### Retry and proxy
+
+```python
+from app_reviews import AppStoreReviews, RetryConfig
+
+retry = RetryConfig(
+    max_retries=5,       # default: 3
+    backoff_factor=1.0,  # wait 1s, 2s, 4s, ... between retries (default: 0.5)
+    timeout=60.0,        # per-request timeout in seconds (default: 30.0)
+    retry_on=[429, 503], # HTTP status codes to retry on (default: [429, 503])
+)
+
+client = AppStoreReviews(retry=retry, proxy="http://proxy.example.com:8080")
+result = client.fetch("324684580", countries=["us"])
+```
+
+### Export results
+
+```python
+from app_reviews import GooglePlayReviews
+from app_reviews.exporters.json import export_json
+from app_reviews.exporters.csv import export_csv
+from app_reviews.exporters.jsonl import export_jsonl
+
+client = GooglePlayReviews()
+result = client.fetch("com.instagram.android")
+
+export_json(result.reviews)   # JSON array string
+export_csv(result.reviews)    # CSV string with headers
+export_jsonl(result.reviews)  # one JSON object per line
 ```
 
 ## Features
@@ -94,9 +145,9 @@ See the [Contributing Guide](https://firattamurcw.github.io/app-reviews/contribu
 
 ## Community
 
-- **[Code of Conduct](CODE_OF_CONDUCT.md)** – our standards for participation
-- **[Security Policy](SECURITY.md)** – how to report vulnerabilities
-- **[Contributing](https://firattamurcw.github.io/app-reviews/contributing/)** – how to submit changes
+- **[Code of Conduct](CODE_OF_CONDUCT.md)** -- our standards for participation
+- **[Security Policy](SECURITY.md)** -- how to report vulnerabilities
+- **[Contributing](https://firattamurcw.github.io/app-reviews/contributing/)** -- how to submit changes
 
 ## License
 

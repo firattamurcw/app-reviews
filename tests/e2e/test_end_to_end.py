@@ -4,7 +4,7 @@ import json
 from typing import Any
 from unittest.mock import patch
 
-from app_reviews import AppStoreScraper, FetchResult, Review
+from app_reviews import AppStoreReviews, FetchResult, Review
 from app_reviews.exporters.csv import export_csv
 from app_reviews.exporters.json import export_json
 from app_reviews.exporters.jsonl import export_jsonl
@@ -37,12 +37,12 @@ def _rss_response(url: str, **kwargs: Any) -> HttpResponse:
 
 class TestEndToEndSync:
     @patch("app_reviews.providers.appstore.scraper.http_get")
-    def test_scraper_fetch_and_export_json(self, mock_get: Any) -> None:
-        """Full flow: scraper -> fetch -> JSON export."""
+    def test_fetch_and_export_json(self, mock_get: Any) -> None:
+        """Full flow: client -> fetch -> JSON export."""
         mock_get.side_effect = _rss_response
 
-        scraper = AppStoreScraper(app_id="99999", countries=["us", "gb"])
-        result = scraper.fetch()
+        client = AppStoreReviews()
+        result = client.fetch("99999", countries=["us", "gb"])
 
         assert isinstance(result, FetchResult)
         assert len(result.reviews) == 3
@@ -54,11 +54,11 @@ class TestEndToEndSync:
         assert len(parsed) == 3
 
     @patch("app_reviews.providers.appstore.scraper.http_get")
-    def test_scraper_fetch_and_export_jsonl(self, mock_get: Any) -> None:
+    def test_fetch_and_export_jsonl(self, mock_get: Any) -> None:
         mock_get.side_effect = _rss_response
 
-        scraper = AppStoreScraper(app_id="99999", countries=["us"])
-        result = scraper.fetch()
+        client = AppStoreReviews()
+        result = client.fetch("99999", countries=["us"])
 
         text = export_jsonl(result.reviews)
         lines = [line for line in text.strip().split("\n") if line]
@@ -68,11 +68,11 @@ class TestEndToEndSync:
             assert obj["app_id"] == "99999"
 
     @patch("app_reviews.providers.appstore.scraper.http_get")
-    def test_scraper_fetch_and_export_csv(self, mock_get: Any) -> None:
+    def test_fetch_and_export_csv(self, mock_get: Any) -> None:
         mock_get.side_effect = _rss_response
 
-        scraper = AppStoreScraper(app_id="99999", countries=["us"])
-        result = scraper.fetch()
+        client = AppStoreReviews()
+        result = client.fetch("99999", countries=["us"])
 
         text = export_csv(result.reviews)
         assert "app_id" in text
@@ -90,8 +90,8 @@ class TestEndToEndSync:
 
         mock_get.side_effect = handler
 
-        scraper = AppStoreScraper(app_id="99999", countries=["us", "gb"])
-        result = scraper.fetch()
+        client = AppStoreReviews()
+        result = client.fetch("99999", countries=["us", "gb"])
 
         assert len(result.reviews) == 1
         assert len(result.failures) == 1
