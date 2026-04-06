@@ -84,7 +84,7 @@ def test_fetch_result_filter_by_ratings():
     result = FetchResult(reviews=[r1, r2, r3], stats=FetchStats(total_reviews=3))
     filtered = result.filter(ratings=[4, 5])
     assert len(filtered) == 1
-    assert list(filtered)[0].rating == 5
+    assert next(iter(filtered)).rating == 5
 
 
 def test_fetch_result_filter_by_since():
@@ -101,7 +101,7 @@ def test_fetch_result_filter_by_until():
     result = FetchResult(reviews=[old, new], stats=FetchStats(total_reviews=2))
     filtered = result.filter(until=date(2025, 1, 1))
     assert len(filtered) == 1
-    assert list(filtered)[0].id == "1"
+    assert next(iter(filtered)).id == "1"
 
 
 def test_fetch_result_filter_is_non_destructive():

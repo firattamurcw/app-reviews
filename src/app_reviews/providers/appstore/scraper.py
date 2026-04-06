@@ -20,9 +20,7 @@ RSS_URL_TEMPLATE = (
 )
 
 
-def _map_entry(
-    entry: dict[str, Any], app_id: str, country: str
-) -> Review:
+def _map_entry(entry: dict[str, Any], app_id: str, country: str) -> Review:
     source_review_id: str = entry["id"]["label"]
     version: str | None = entry.get("im:version", {}).get("label") or None
 
@@ -43,15 +41,11 @@ def _map_entry(
     )
 
 
-def _parse_entries(
-    response: HttpResponse, app_id: str, country: str
-) -> list[Review]:
+def _parse_entries(response: HttpResponse, app_id: str, country: str) -> list[Review]:
     data = json.loads(response.body)
     entries = data.get("feed", {}).get("entry", [])
     return [
-        _map_entry(entry, app_id, country)
-        for entry in entries
-        if "im:rating" in entry
+        _map_entry(entry, app_id, country) for entry in entries if "im:rating" in entry
     ]
 
 
@@ -68,9 +62,7 @@ class RSSProvider:
         self._pages = pages
         self._timeout = timeout
 
-    def _fetch_page(
-        self, app_id: str, country: str, page: int
-    ) -> FetchResult:
+    def _fetch_page(self, app_id: str, country: str, page: int) -> FetchResult:
         url = RSS_URL_TEMPLATE.format(country=country, app_id=app_id, page=page)
         try:
             response = http_get(url, timeout=self._timeout)

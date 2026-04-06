@@ -48,7 +48,7 @@ class TestAppStoreReviews:
         client = AppStoreReviews()
         result = client.fetch("324684580")
         assert len(result) == 1
-        assert list(result)[0].id == "1"
+        assert next(iter(result)).id == "1"
 
     @patch("app_reviews.client.execute_fetch")
     def test_fetch_with_countries(self, mock_exec):
@@ -88,7 +88,7 @@ class TestAppStoreReviews:
         client = AppStoreReviews()
         result = client.fetch("123", ratings=[4, 5])
         assert len(result) == 1
-        assert list(result)[0].rating == 5
+        assert next(iter(result)).rating == 5
 
     @patch("app_reviews.client.execute_fetch")
     def test_fetch_on_review_callback(self, mock_exec):

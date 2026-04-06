@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 if TYPE_CHECKING:
     from app_reviews.models.result import CountryStatus, FetchFailure, FetchResult
@@ -36,4 +36,4 @@ class FetchCallback(Protocol):
     def __subclasshook__(cls, C: Any) -> bool:
         if cls is FetchCallback:
             return hasattr(C, "on_review")
-        return NotImplemented  # type: ignore[return-value]
+        return cast(bool, NotImplemented)

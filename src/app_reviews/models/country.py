@@ -1,6 +1,9 @@
 """Country StrEnum with region groups."""
 
+from __future__ import annotations
+
 from enum import StrEnum
+from typing import ClassVar
 
 
 class Country(StrEnum):
@@ -165,52 +168,182 @@ class Country(StrEnum):
     ZA = "za"
     ZW = "zw"
 
+    # Region group declarations (populated after class body)
+    ALL: ClassVar[frozenset[Country]]
+    EUROPE: ClassVar[frozenset[Country]]
+    AMERICAS: ClassVar[frozenset[Country]]
+    ASIA_PACIFIC: ClassVar[frozenset[Country]]
+    MIDDLE_EAST: ClassVar[frozenset[Country]]
+    ENGLISH_SPEAKING: ClassVar[frozenset[Country]]
 
-# Region groups attached as class-level frozenset attributes
 
-Country.ALL = frozenset(Country)  # type: ignore[attr-defined]
+# Region groups — assigned after class creation because enum members
+# must be defined before they can be referenced in frozenset literals.
 
-Country.EUROPE = frozenset({  # type: ignore[attr-defined]
-    Country.AL, Country.AT, Country.BE, Country.BG, Country.BY,
-    Country.CH, Country.CY, Country.CZ, Country.DE, Country.DK,
-    Country.EE, Country.ES, Country.FI, Country.FR, Country.GB,
-    Country.GR, Country.HR, Country.HU, Country.IE, Country.IS,
-    Country.IT, Country.LT, Country.LU, Country.LV, Country.MD,
-    Country.MK, Country.MT, Country.NL, Country.NO, Country.PL,
-    Country.PT, Country.RO, Country.RU, Country.SE, Country.SI,
-    Country.SK, Country.TR, Country.UA,
-})
+Country.ALL = frozenset(Country)
 
-Country.AMERICAS = frozenset({  # type: ignore[attr-defined]
-    Country.AG, Country.AI, Country.AR, Country.BB, Country.BM,
-    Country.BO, Country.BR, Country.BS, Country.BZ, Country.CA,
-    Country.CL, Country.CO, Country.CR, Country.DM, Country.DO,
-    Country.EC, Country.GD, Country.GT, Country.GW, Country.GY,
-    Country.HN, Country.JM, Country.KN, Country.KY, Country.LC,
-    Country.MX, Country.NI, Country.PA, Country.PE, Country.PY,
-    Country.SR, Country.SV, Country.TC, Country.TT, Country.US,
-    Country.UY, Country.VC, Country.VE, Country.VG,
-})
+Country.EUROPE = frozenset(
+    {
+        Country.AL,
+        Country.AT,
+        Country.BE,
+        Country.BG,
+        Country.BY,
+        Country.CH,
+        Country.CY,
+        Country.CZ,
+        Country.DE,
+        Country.DK,
+        Country.EE,
+        Country.ES,
+        Country.FI,
+        Country.FR,
+        Country.GB,
+        Country.GR,
+        Country.HR,
+        Country.HU,
+        Country.IE,
+        Country.IS,
+        Country.IT,
+        Country.LT,
+        Country.LU,
+        Country.LV,
+        Country.MD,
+        Country.MK,
+        Country.MT,
+        Country.NL,
+        Country.NO,
+        Country.PL,
+        Country.PT,
+        Country.RO,
+        Country.RU,
+        Country.SE,
+        Country.SI,
+        Country.SK,
+        Country.TR,
+        Country.UA,
+    }
+)
 
-Country.ASIA_PACIFIC = frozenset({  # type: ignore[attr-defined]
-    Country.AU, Country.BN, Country.BT, Country.CN, Country.FJ,
-    Country.FM, Country.HK, Country.ID, Country.IN, Country.JP,
-    Country.KH, Country.KR, Country.KZ, Country.KG, Country.LA,
-    Country.LK, Country.MN, Country.MO, Country.MY, Country.NP,
-    Country.NZ, Country.PG, Country.PH, Country.PK, Country.PW,
-    Country.SB, Country.SG, Country.TH, Country.TJ, Country.TM,
-    Country.TW, Country.UZ, Country.VN,
-})
+Country.AMERICAS = frozenset(
+    {
+        Country.AG,
+        Country.AI,
+        Country.AR,
+        Country.BB,
+        Country.BM,
+        Country.BO,
+        Country.BR,
+        Country.BS,
+        Country.BZ,
+        Country.CA,
+        Country.CL,
+        Country.CO,
+        Country.CR,
+        Country.DM,
+        Country.DO,
+        Country.EC,
+        Country.GD,
+        Country.GT,
+        Country.GW,
+        Country.GY,
+        Country.HN,
+        Country.JM,
+        Country.KN,
+        Country.KY,
+        Country.LC,
+        Country.MX,
+        Country.NI,
+        Country.PA,
+        Country.PE,
+        Country.PY,
+        Country.SR,
+        Country.SV,
+        Country.TC,
+        Country.TT,
+        Country.US,
+        Country.UY,
+        Country.VC,
+        Country.VE,
+        Country.VG,
+    }
+)
 
-Country.MIDDLE_EAST = frozenset({  # type: ignore[attr-defined]
-    Country.AE, Country.BH, Country.DZ, Country.EG, Country.IL,
-    Country.JO, Country.KW, Country.LB, Country.OM, Country.QA,
-    Country.SA, Country.TN, Country.YE,
-})
+Country.ASIA_PACIFIC = frozenset(
+    {
+        Country.AU,
+        Country.BN,
+        Country.BT,
+        Country.CN,
+        Country.FJ,
+        Country.FM,
+        Country.HK,
+        Country.ID,
+        Country.IN,
+        Country.JP,
+        Country.KH,
+        Country.KR,
+        Country.KZ,
+        Country.KG,
+        Country.LA,
+        Country.LK,
+        Country.MN,
+        Country.MO,
+        Country.MY,
+        Country.NP,
+        Country.NZ,
+        Country.PG,
+        Country.PH,
+        Country.PK,
+        Country.PW,
+        Country.SB,
+        Country.SG,
+        Country.TH,
+        Country.TJ,
+        Country.TM,
+        Country.TW,
+        Country.UZ,
+        Country.VN,
+    }
+)
 
-Country.ENGLISH_SPEAKING = frozenset({  # type: ignore[attr-defined]
-    Country.AU, Country.CA, Country.GB, Country.IE, Country.NZ,
-    Country.US, Country.ZA, Country.JM, Country.TT, Country.BB,
-    Country.BZ, Country.GY, Country.SG, Country.PH, Country.IN,
-    Country.KE, Country.NG, Country.GH,
-})
+Country.MIDDLE_EAST = frozenset(
+    {
+        Country.AE,
+        Country.BH,
+        Country.DZ,
+        Country.EG,
+        Country.IL,
+        Country.JO,
+        Country.KW,
+        Country.LB,
+        Country.OM,
+        Country.QA,
+        Country.SA,
+        Country.TN,
+        Country.YE,
+    }
+)
+
+Country.ENGLISH_SPEAKING = frozenset(
+    {
+        Country.AU,
+        Country.CA,
+        Country.GB,
+        Country.IE,
+        Country.NZ,
+        Country.US,
+        Country.ZA,
+        Country.JM,
+        Country.TT,
+        Country.BB,
+        Country.BZ,
+        Country.GY,
+        Country.SG,
+        Country.PH,
+        Country.IN,
+        Country.KE,
+        Country.NG,
+        Country.GH,
+    }
+)

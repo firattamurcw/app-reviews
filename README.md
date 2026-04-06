@@ -35,7 +35,6 @@ pip install app-reviews
 from app_reviews import AppStoreReviews, GooglePlayReviews, AppStoreAuth, Country
 
 # Apple App Store – Spotify
-# Client holds connection config; fetch() takes the app ID and query params
 client = AppStoreReviews(
     auth=AppStoreAuth(
         key_id="ABC123DEF4",
