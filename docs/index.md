@@ -13,9 +13,9 @@ App Reviews handles all of this for you. One interface, both stores, 175+ countr
 **What makes it different:**
 
 - **Zero-config start.** Works without any API keys or developer accounts. Just install and fetch.
-- **Both stores, one API.** `AppStoreScraper` and `GooglePlayScraper` follow the same pattern. Learn one, you know both.
+- **Both stores, one API.** `AppStoreReviews` and `GooglePlayReviews` follow the same pattern. Learn one, you know both.
 - **Multi-country with deduplication.** Fetch from dozens of countries in a single call. The package removes duplicate reviews automatically using a two-pass algorithm (exact ID match, then fuzzy match).
-- **Optional authenticated access.** When you need more data or higher limits, plug in your App Store Connect or Google Play Developer API credentials. The package auto-selects the best provider.
+- **Optional authenticated access.** When you need more data or higher limits, plug in your App Store Connect or Google Play Developer API credentials via `AppStoreAuth` or `GooglePlayAuth`. The package auto-selects the best provider.
 - **Minimal dependencies.** One runtime dependency (`cryptography` for JWT signing). All HTTP uses Python's built-in `urllib`.
 - **Three interfaces.** Python API, CLI, and an interactive terminal UI.
 
@@ -26,36 +26,36 @@ App Reviews handles all of this for you. One interface, both stores, 175+ countr
 **Apple App Store:**
 
 ```python
-from app_reviews import AppStoreScraper
+from app_reviews import AppStoreReviews, AppStoreAuth, Country
 
-scraper = AppStoreScraper(
-    app_id="123456789",
-    countries=["us", "gb", "de"],
+client = AppStoreReviews(
+    auth=AppStoreAuth(
+        key_id="ABC123DEF4",
+        issuer_id="12345678-1234-1234-1234-123456789012",
+        key_path="/path/to/AuthKey.p8",
+    )
 )
 
-result = scraper.fetch()
+result = client.fetch("123456789", countries=[Country.US, Country.GB, Country.DE])
 
-for review in result.reviews:
+for review in result:
     print(f"[{review.country}] {review.rating}* {review.title}")
 ```
 
 **Google Play Store:**
 
 ```python
-from app_reviews import GooglePlayScraper
+from app_reviews import GooglePlayReviews, Country
 
-scraper = GooglePlayScraper(
-    app_id="com.example.app",
-    countries=["us", "gb"],
-)
+client = GooglePlayReviews()
 
-result = scraper.fetch()
+result = client.fetch("com.example.app", countries=[Country.US, Country.GB])
 
-for review in result.reviews:
+for review in result:
     print(f"[{review.country}] {review.rating}* {review.body[:80]}")
 ```
 
-Both return a `FetchResult` object containing deduplicated reviews, any failures, warnings, and timing statistics.
+Both return a `FetchResult` object containing deduplicated reviews, any failures, warnings, and timing statistics. `FetchResult` is iterable — you can loop over it directly to get `Review` objects.
 
 ---
 

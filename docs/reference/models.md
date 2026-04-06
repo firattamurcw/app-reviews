@@ -17,10 +17,8 @@ from app_reviews import Review
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `store` | `"appstore"` or `"googleplay"` | Required | Which store the review came from. |
-| `review_id` | `str` | Required | A unique identifier for this review. |
-| `canonical_key` | `str` | Required | A key used for deduplication across providers. Format: `{store}:{source_review_id}`. |
+| `id` | `str` | Required | A unique identifier for this review. |
 | `app_id` | `str` | Required | The app's ID (numeric for App Store, package name for Google Play). |
-| `app_input` | `str` | Required | The original input value you passed to the scraper. This preserves what you gave it, even if it was a URL that got resolved to an ID. |
 | `country` | `str` | Required | Two-letter country code (like `"us"`, `"gb"`, `"de"`). |
 | `rating` | `int` | Required | Star rating from 1 to 5. Validated on creation -- values outside this range raise `ValueError`. |
 | `title` | `str` | Required | The review's title. May be empty for Google Play reviews (Google Play reviews do not have titles). |
@@ -28,20 +26,18 @@ from app_reviews import Review
 | `author_name` | `str` | Required | The display name of the review author. |
 | `created_at` | `datetime` | Required | When the review was originally posted. |
 | `source` | `str` | Required | Which data source provided this review. One of: `appstore_scraper`, `appstore_official`, `googleplay_scraper`, `googleplay_official`. |
-| `source_review_id` | `str` | Required | The raw review ID as returned by the source. |
-| `fetched_at` | `datetime` | Required | When this review was fetched by the scraper. |
-| `locale` | `str` or `None` | `None` | The locale of the review (like `"en_US"`), if available. |
+| `fetched_at` | `datetime` | Required | When this review was fetched by the client. |
 | `language` | `str` or `None` | `None` | The language of the review (like `"en"`), if available. |
 | `app_version` | `str` or `None` | `None` | The app version that was reviewed (like `"2.1.0"`), if available. Not all sources provide this. |
 | `updated_at` | `datetime` or `None` | `None` | When the review was last edited, if it was edited. |
 | `is_edited` | `bool` | `False` | `True` if the review has been edited by the author. |
-| `source_payload` | `dict` or `None` | `None` | The raw response from the API for this review. Only populated when `include_raw=True` is used during export. |
+| `raw` | `dict` or `None` | `None` | The raw response from the API for this review. Only populated when `include_raw=True` is used during export. |
 
 ---
 
 ## FetchResult
 
-The return value of `scraper.fetch()`. Contains everything from a fetch operation: the reviews, any failures, warnings, statistics, and checkpoint state.
+The return value of `client.fetch()`. Contains everything from a fetch operation: the reviews, per-country status, statistics, and cursor state. `FetchResult` is iterable — you can loop over it directly to get `Review` objects.
 
 ```python
 from app_reviews import FetchResult
@@ -49,22 +45,58 @@ from app_reviews import FetchResult
 
 ### Fields
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `reviews` | `list[Review]` | `[]` | The deduplicated list of reviews, sorted newest-first by default. |
-| `failures` | `list[FetchFailure]` | `[]` | A list of fetch attempts that failed. Each failure records which app, country, and provider failed, and what the error was. |
-| `warnings` | `list[FetchWarning]` | `[]` | A list of non-fatal issues that happened during the fetch. These do not stop the fetch but may indicate problems. |
-| `stats` | `FetchStats` | `FetchStats()` | Summary statistics for the fetch operation. |
-| `checkpoint` | `dict[str, str]` | `{}` | State for resuming an interrupted fetch. Can be passed back to continue where you left off. |
+| Field | Type | Description |
+|-------|------|-------------|
+| `countries` | `list[CountryStatus]` | Per-country fetch status. Each entry records whether that country succeeded or failed. |
+| `stats` | `FetchStats` | Summary statistics for the fetch operation. |
+| `cursor` | `str` or `None` | Cursor for resuming a paginated fetch. Pass to the next `fetch()` call to continue where you left off. |
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `succeeded` | `list[CountryStatus]` | Countries that were fetched successfully. |
+| `failed` | `list[CountryStatus]` | Countries that failed to fetch. |
+
+### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `__iter__()` | `Iterator[Review]` | Iterate over deduplicated reviews, sorted newest-first. |
+| `__len__()` | `int` | Number of unique reviews. |
+| `__bool__()` | `bool` | `True` if there is at least one review. |
+| `filter(ratings, since, until)` | `FetchResult` | Return a new `FetchResult` with only reviews matching the given criteria. |
+| `to_dicts(include_raw)` | `list[dict]` | Convert reviews to a list of plain dicts. |
+| `to_df(include_raw)` | `DataFrame` | Convert reviews to a pandas DataFrame (requires pandas). |
 
 !!! note
-    A fetch can partially succeed. If 3 out of 5 countries succeed, `result.reviews` contains the reviews from those 3 countries, and `result.failures` contains the 2 that failed. Always check `result.failures` if you need to know whether everything succeeded.
+    A fetch can partially succeed. If 3 out of 5 countries succeed, iterating over the result yields the reviews from those 3 countries, and `result.failed` contains the 2 that failed. Always check `result.failed` if you need to know whether everything succeeded.
+
+---
+
+## CountryStatus
+
+Records the fetch status for a single country.
+
+```python
+from app_reviews import CountryStatus
+```
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `country` | `str` | Two-letter country code. |
+| `succeeded` | `bool` | `True` if the fetch for this country succeeded. |
+| `review_count` | `int` | Number of reviews fetched for this country (0 on failure). |
+| `error` | `str` or `None` | Error message if the fetch failed. `None` on success. |
+| `timestamp` | `datetime` | When the fetch attempt occurred. |
 
 ---
 
 ## FetchFailure
 
-Records a single failed fetch attempt.
+Records a single failed fetch attempt. Used internally and in legacy result objects.
 
 ```python
 from app_reviews import FetchFailure
@@ -81,8 +113,6 @@ from app_reviews import FetchFailure
 | `timestamp` | `datetime` | When the failure occurred. |
 
 ### Factory Method
-
-You can create a `FetchFailure` with an automatic timestamp:
 
 ```python
 failure = FetchFailure.create(
@@ -129,6 +159,119 @@ from app_reviews import FetchStats
 | `total_failures` | `int` | `0` | Number of fetch attempts that failed. |
 | `total_warnings` | `int` | `0` | Number of warnings generated. |
 | `duration_seconds` | `float` | `0.0` | How long the entire fetch operation took, in seconds. |
+
+---
+
+## Country
+
+`Country` is a `StrEnum` — values are two-letter country codes usable anywhere a string is expected.
+
+```python
+from app_reviews import Country
+```
+
+### Individual Countries
+
+```python
+Country.US    # "us"
+Country.GB    # "gb"
+Country.DE    # "de"
+Country.FR    # "fr"
+Country.JP    # "jp"
+Country.CA    # "ca"
+Country.AU    # "au"
+# ... 175+ total
+```
+
+### Convenience Groups
+
+| Group | Description |
+|-------|-------------|
+| `Country.EUROPE` | All European countries supported by the store. |
+| `Country.ALL` | All 175+ supported countries. |
+
+You can also pass plain strings: `countries=["us", "gb"]` works the same as `countries=[Country.US, Country.GB]`.
+
+---
+
+## Sort
+
+Controls the order of reviews returned by `fetch()`.
+
+```python
+from app_reviews import Sort
+```
+
+| Value | Description |
+|-------|-------------|
+| `Sort.NEWEST` | Most recently posted reviews first (default). |
+| `Sort.OLDEST` | Oldest reviews first. |
+| `Sort.RATING` | Highest-rated reviews first. |
+
+---
+
+## RetryConfig
+
+Controls retry behaviour for failed requests.
+
+```python
+from app_reviews import RetryConfig
+```
+
+### Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `max_attempts` | `int` | `3` | Maximum number of attempts per request (including the first). |
+| `backoff_factor` | `float` | `1.0` | Multiplier applied to the wait time between retries. |
+| `retry_on` | `list[int]` or `None` | `None` | HTTP status codes that should trigger a retry. If `None`, uses a sensible default set (e.g. 429, 500, 502, 503, 504). |
+
+### Example
+
+```python
+from app_reviews import AppStoreReviews, RetryConfig
+
+client = AppStoreReviews(
+    retry=RetryConfig(max_attempts=5, backoff_factor=2.0, retry_on=[429, 503])
+)
+```
+
+---
+
+## FetchCallback
+
+Protocol for lifecycle hooks. Implement any subset of the methods you need.
+
+```python
+from app_reviews import FetchCallback, Review
+```
+
+### Protocol Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `on_start` | `(app_id: str) -> None` | Called once when a fetch begins. |
+| `on_review` | `(review: Review) -> None` | Called for each review as it is fetched, before deduplication. |
+| `on_end` | `(app_id: str, total: int) -> None` | Called once when a fetch completes. `total` is the final deduplicated count. |
+
+### Example
+
+```python
+from app_reviews import AppStoreReviews, FetchCallback, Review
+
+class LoggingCallback:
+    def on_start(self, app_id: str) -> None:
+        print(f"Fetching {app_id}...")
+
+    def on_review(self, review: Review) -> None:
+        print(f"  [{review.country}] {review.rating}*")
+
+    def on_end(self, app_id: str, total: int) -> None:
+        print(f"Done: {total} reviews")
+
+client = AppStoreReviews(callbacks=[LoggingCallback()])
+result = client.fetch("123456789")
+```
 
 ---
 

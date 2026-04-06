@@ -1,268 +1,377 @@
 # Python API
 
-The Python API provides two main classes: `AppStoreScraper` for the Apple App Store and `GooglePlayScraper` for the Google Play Store. Both follow the same pattern: create a scraper, call `fetch()`, get results.
+The Python API provides two main classes: `AppStoreReviews` for the Apple App Store and `GooglePlayReviews` for the Google Play Store. Both follow the same pattern: create a client with connection configuration, then call `fetch()` with the app ID and query parameters. The client is reusable — you can call `fetch()` multiple times for different apps.
 
 ---
 
-## AppStoreScraper
+## AppStoreReviews
 
 Fetches reviews from the Apple App Store.
 
 ### Import
 
 ```python
-from app_reviews import AppStoreScraper
+from app_reviews import AppStoreReviews, AppStoreAuth
 ```
 
 ### Constructor
 
 ```python
-scraper = AppStoreScraper(
-    app_id="123456789",
-    countries=["us", "gb", "de"],
-    provider="auto",
-    key_id=None,
-    issuer_id=None,
-    key_path=None,
+client = AppStoreReviews(
+    auth=None,
+    proxy=None,
+    retry=None,
+    debug=False,
+    callbacks=None,
+    on_review=None,
 )
 ```
 
-All parameters are keyword-only.
+The constructor takes **connection configuration only** — no app ID, no query parameters. This lets you create the client once and reuse it for many `fetch()` calls.
 
-### Parameters
+### Constructor Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `app_id` | `str` or `None` | `None` | A single App Store ID. Use this or `app_ids`, not both. |
-| `app_ids` | `list[str]` or `None` | `None` | A list of App Store IDs. Use this to fetch reviews for multiple apps in one call. |
-| `countries` | `list[str]` or `None` | `["us"]` | List of two-letter country codes to fetch from. Reviews are fetched from each country and then deduplicated. |
-| `provider` | `str` | `"auto"` | Which data source to use. See the provider table below. |
-| `key_id` | `str` or `None` | `None` | Your App Store Connect API key ID. Required for the `official` provider. |
-| `issuer_id` | `str` or `None` | `None` | Your App Store Connect issuer ID. Required for the `official` provider. |
-| `key_path` | `str` or `None` | `None` | Path to your `.p8` private key file. Required for the `official` provider. |
+| `auth` | `AppStoreAuth` or `None` | `None` | Authentication credentials. If `None`, uses the public RSS feed. If provided, uses the App Store Connect API. |
+| `proxy` | `str` or `None` | `None` | HTTP proxy URL. Applied to all requests made by this client. |
+| `retry` | `RetryConfig` or `None` | `None` | Retry configuration. If `None`, uses the default retry settings. |
+| `debug` | `bool` | `False` | If `True`, prints debug information for each request. |
+| `callbacks` | `list[FetchCallback]` or `None` | `None` | Lifecycle callbacks invoked at fetch start, per-review, and fetch end. |
+| `on_review` | `callable` or `None` | `None` | Shorthand for a single per-review callback. Called with each `Review` as it is fetched. |
 
-### app_id vs app_ids
+### fetch() Method
 
-Use `app_id` when you are fetching reviews for a single app. This is the common case.
+```python
+result = client.fetch(
+    app_id,
+    countries=None,
+    since=None,
+    until=None,
+    ratings=None,
+    sort=None,
+    limit=None,
+    cursor=None,
+)
+```
 
-Use `app_ids` when you want to fetch reviews for multiple apps in one call. The result will contain reviews from all the apps mixed together. Each review has an `app_id` field so you can tell which app it belongs to.
+### fetch() Parameters
 
-You must provide exactly one of these. Passing both raises an error. Passing neither also raises an error.
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `app_id` | `str` | Required (positional) | The App Store ID to fetch reviews for (the numeric ID from the app's URL). |
+| `countries` | `list[Country \| str]` or `None` | `[Country.US]` | Countries to fetch from. Accepts `Country` enum values or two-letter strings. Reviews are fetched from each country and deduplicated. |
+| `since` | `date` or `None` | `None` | Only return reviews posted on or after this date. |
+| `until` | `date` or `None` | `None` | Only return reviews posted on or before this date. |
+| `ratings` | `list[int]` or `None` | `None` | Filter to specific star ratings. Example: `[1, 2]` returns only 1- and 2-star reviews. |
+| `sort` | `Sort` or `None` | `None` | Sort order. One of `Sort.NEWEST`, `Sort.OLDEST`, `Sort.RATING`. |
+| `limit` | `int` or `None` | `None` | Maximum number of reviews to return. |
+| `cursor` | `str` or `None` | `None` | Resume a paginated fetch from a previous result's `cursor`. |
 
-### Providers
+### AppStoreAuth
 
-| Provider | Auth Required | Description |
-|----------|---------------|-------------|
-| `"auto"` | No | Uses the official API if `key_id`, `issuer_id`, and `key_path` are all provided. Otherwise falls back to the scraper. This is the default. |
-| `"scraper"` | No | Fetches from the public iTunes RSS feed. No setup needed. Works for any app. Returns up to ~500 reviews (most recent only). |
-| `"official"` | Yes | Uses the App Store Connect API. Requires `key_id`, `issuer_id`, and `key_path`. Returns more data and supports higher limits. See [Authentication](authentication.md) for setup. |
+```python
+from app_reviews import AppStoreAuth
 
-!!! warning "Scraper limitations"
-    The RSS feed scraper returns only the most recent reviews. There is no way to fetch historical reviews through this endpoint. For most apps, you will get somewhere between 50 and 500 reviews per country. If you need more, use the `"official"` provider.
+auth = AppStoreAuth(
+    key_id="ABC123DEF4",
+    issuer_id="12345678-1234-1234-1234-123456789012",
+    key_path="/path/to/AuthKey_ABC123DEF4.p8",
+)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `key_id` | `str` | Your App Store Connect API key ID. |
+| `issuer_id` | `str` | Your App Store Connect issuer ID. |
+| `key_path` | `str` | Path to your `.p8` private key file. |
 
 ### Examples
 
-**Basic usage:**
+**Basic usage (no auth, public RSS feed):**
 
 ```python
-from app_reviews import AppStoreScraper
+from app_reviews import AppStoreReviews
 
-scraper = AppStoreScraper(app_id="123456789")
-result = scraper.fetch()
+client = AppStoreReviews()
+result = client.fetch("123456789")
 
-for review in result.reviews:
+for review in result:
     print(f"{review.rating}* {review.title}")
 ```
 
 **Multiple countries:**
 
 ```python
-scraper = AppStoreScraper(
-    app_id="123456789",
-    countries=["us", "gb", "de", "fr", "jp"],
+from app_reviews import AppStoreReviews, Country
+
+client = AppStoreReviews()
+result = client.fetch(
+    "123456789",
+    countries=[Country.US, Country.GB, Country.DE, Country.FR, Country.JP],
 )
-result = scraper.fetch()
-print(f"{len(result.reviews)} unique reviews from 5 countries")
-```
-
-**Multiple apps:**
-
-```python
-scraper = AppStoreScraper(
-    app_ids=["123456789", "987654321"],
-    countries=["us"],
-)
-result = scraper.fetch()
-
-# Reviews from both apps are in the same list
-for review in result.reviews:
-    print(f"[{review.app_id}] {review.rating}* {review.title}")
+print(f"{len(result)} unique reviews from 5 countries")
 ```
 
 **With App Store Connect authentication:**
 
 ```python
-scraper = AppStoreScraper(
-    app_id="123456789",
-    countries=["us", "gb"],
-    provider="official",
-    key_id="ABC123DEF4",
-    issuer_id="12345678-1234-1234-1234-123456789012",
-    key_path="/path/to/AuthKey_ABC123DEF4.p8",
+from app_reviews import AppStoreReviews, AppStoreAuth, Country
+
+client = AppStoreReviews(
+    auth=AppStoreAuth(
+        key_id="ABC123DEF4",
+        issuer_id="12345678-1234-1234-1234-123456789012",
+        key_path="/path/to/AuthKey_ABC123DEF4.p8",
+    )
 )
-result = scraper.fetch()
+
+result = client.fetch("123456789", countries=[Country.US, Country.GB])
 ```
 
-**Force scraper provider (skip authentication even if credentials are available):**
+**Reuse client for multiple apps:**
 
 ```python
-scraper = AppStoreScraper(
-    app_id="123456789",
-    provider="scraper",
+spotify = client.fetch("324684580", countries=[Country.US, Country.GB])
+instagram = client.fetch("389801252", countries=[Country.US])
+twitter = client.fetch("333903271", ratings=[1, 2])
+```
+
+**Filter by date and rating:**
+
+```python
+from datetime import date
+from app_reviews import AppStoreReviews, Country
+
+client = AppStoreReviews()
+result = client.fetch(
+    "123456789",
+    countries=[Country.US],
+    ratings=[1, 2],
+    since=date(2025, 1, 1),
 )
-result = scraper.fetch()
 ```
 
 ---
 
-## GooglePlayScraper
+## GooglePlayReviews
 
 Fetches reviews from the Google Play Store.
 
 ### Import
 
 ```python
-from app_reviews import GooglePlayScraper
+from app_reviews import GooglePlayReviews, GooglePlayAuth
 ```
 
 ### Constructor
 
 ```python
-scraper = GooglePlayScraper(
-    app_id="com.example.app",
-    countries=["us", "gb"],
-    provider="auto",
-    service_account_path=None,
+client = GooglePlayReviews(
+    auth=None,
+    proxy=None,
+    retry=None,
+    debug=False,
+    callbacks=None,
+    on_review=None,
 )
 ```
 
-All parameters are keyword-only.
-
-### Parameters
+### Constructor Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `app_id` | `str` or `None` | `None` | A single Google Play package name. Use this or `app_ids`, not both. |
-| `app_ids` | `list[str]` or `None` | `None` | A list of package names. Use this to fetch reviews for multiple apps in one call. |
-| `countries` | `list[str]` or `None` | `["us"]` | List of two-letter country codes to fetch from. Reviews are fetched from each country and then deduplicated. |
-| `provider` | `str` | `"auto"` | Which data source to use. See the provider table below. |
-| `service_account_path` | `str` or `None` | `None` | Path to a Google service account JSON key file. Required for the `official` provider. |
+| `auth` | `GooglePlayAuth` or `None` | `None` | Authentication credentials. If `None`, uses the public web endpoint. If provided, uses the Google Play Developer API. |
+| `proxy` | `str` or `None` | `None` | HTTP proxy URL. Applied to all requests made by this client. |
+| `retry` | `RetryConfig` or `None` | `None` | Retry configuration. If `None`, uses the default retry settings. |
+| `debug` | `bool` | `False` | If `True`, prints debug information for each request. |
+| `callbacks` | `list[FetchCallback]` or `None` | `None` | Lifecycle callbacks invoked at fetch start, per-review, and fetch end. |
+| `on_review` | `callable` or `None` | `None` | Shorthand for a single per-review callback. Called with each `Review` as it is fetched. |
 
-### app_id vs app_ids
+### fetch() Method
 
-Same as App Store above. Use `app_id` for one app (common case), `app_ids` for multiple apps in one call. Provide exactly one.
+```python
+result = client.fetch(
+    app_id,
+    countries=None,
+    since=None,
+    until=None,
+    ratings=None,
+    sort=None,
+    limit=None,
+    cursor=None,
+)
+```
 
-### Providers
+### fetch() Parameters
 
-| Provider | Auth Required | Description |
-|----------|---------------|-------------|
-| `"auto"` | No | Uses the official API if `service_account_path` is provided. Otherwise falls back to the scraper. This is the default. |
-| `"scraper"` | No | Scrapes the public Google Play website. No setup needed. Works for any app. Handles rate limiting with automatic exponential backoff. |
-| `"official"` | Yes | Uses the Google Play Developer API. Requires a service account. See [Authentication](authentication.md) for setup. |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `app_id` | `str` | Required (positional) | The Google Play package name (e.g. `"com.example.app"`). |
+| `countries` | `list[Country \| str]` or `None` | `[Country.US]` | Countries to fetch from. |
+| `since` | `date` or `None` | `None` | Only return reviews posted on or after this date. |
+| `until` | `date` or `None` | `None` | Only return reviews posted on or before this date. |
+| `ratings` | `list[int]` or `None` | `None` | Filter to specific star ratings. |
+| `sort` | `Sort` or `None` | `None` | Sort order. One of `Sort.NEWEST`, `Sort.OLDEST`, `Sort.RATING`. |
+| `limit` | `int` or `None` | `None` | Maximum number of reviews to return. |
+| `cursor` | `str` or `None` | `None` | Resume a paginated fetch from a previous result's `cursor`. |
 
-!!! warning "Scraper limitations"
-    The Google Play web scraper uses an undocumented internal Google endpoint. It works well, but Google can rate-limit you or change the endpoint without notice, which would temporarily break scraping. The package handles rate limits with automatic backoff, but heavy usage may hit walls.
+### GooglePlayAuth
+
+```python
+from app_reviews import GooglePlayAuth
+
+auth = GooglePlayAuth(
+    service_account_path="/path/to/service-account.json",
+)
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `service_account_path` | `str` | Path to a Google service account JSON key file. |
 
 ### Examples
 
-**Basic usage:**
+**Basic usage (no auth):**
 
 ```python
-from app_reviews import GooglePlayScraper
+from app_reviews import GooglePlayReviews
 
-scraper = GooglePlayScraper(app_id="com.example.app")
-result = scraper.fetch()
+client = GooglePlayReviews()
+result = client.fetch("com.example.app")
 
-for review in result.reviews:
+for review in result:
     print(f"{review.rating}* {review.body[:100]}")
 ```
 
 **Multiple countries:**
 
 ```python
-scraper = GooglePlayScraper(
-    app_id="com.example.app",
-    countries=["us", "gb", "de", "fr", "jp"],
-)
-result = scraper.fetch()
-print(f"{len(result.reviews)} unique reviews from 5 countries")
-```
+from app_reviews import GooglePlayReviews, Country
 
-**Multiple apps:**
-
-```python
-scraper = GooglePlayScraper(
-    app_ids=["com.example.app", "com.another.app"],
-    countries=["us"],
+client = GooglePlayReviews()
+result = client.fetch(
+    "com.example.app",
+    countries=[Country.US, Country.GB, Country.DE, Country.FR, Country.JP],
 )
-result = scraper.fetch()
+print(f"{len(result)} unique reviews from 5 countries")
 ```
 
 **With Google Play Developer API authentication:**
 
 ```python
-scraper = GooglePlayScraper(
-    app_id="com.example.app",
-    countries=["us", "gb"],
-    provider="official",
-    service_account_path="/path/to/service-account.json",
+from app_reviews import GooglePlayReviews, GooglePlayAuth, Country, Sort
+
+client = GooglePlayReviews(
+    auth=GooglePlayAuth(
+        service_account_path="/path/to/service-account.json",
+    )
 )
-result = scraper.fetch()
+
+result = client.fetch(
+    "com.example.app",
+    countries=[Country.US, Country.GB],
+    sort=Sort.NEWEST,
+    limit=100,
+)
 ```
 
-**Force web scraping (skip authentication even if credentials are available):**
+---
+
+## Country Enum
+
+`Country` is a `StrEnum` — values are two-letter country codes but can be used anywhere a string is expected.
 
 ```python
-scraper = GooglePlayScraper(
-    app_id="com.example.app",
-    provider="scraper",
-)
-result = scraper.fetch()
+from app_reviews import Country
+
+# Individual countries
+Country.US   # "us"
+Country.GB   # "gb"
+Country.DE   # "de"
+Country.FR   # "fr"
+Country.JP   # "jp"
+
+# Convenience groups
+Country.EUROPE   # all European countries
+Country.ALL      # all 175+ supported countries
+```
+
+You can also pass plain strings: `countries=["us", "gb"]` works the same as `countries=[Country.US, Country.GB]`.
+
+---
+
+## Sort Enum
+
+```python
+from app_reviews import Sort
+
+Sort.NEWEST   # most recent reviews first (default)
+Sort.OLDEST   # oldest reviews first
+Sort.RATING   # highest rated first
 ```
 
 ---
 
 ## Working with Results
 
-Both scrapers return a `FetchResult` object. See the [Models](../reference/models.md) page for full field documentation.
+Both clients return a `FetchResult` object. See the [Models](../reference/models.md) page for full field documentation.
 
-### Inspect the result
+### Iterate, count, and check
 
 ```python
-result = scraper.fetch()
+result = client.fetch("123456789")
 
-# Number of reviews
-print(f"Reviews: {len(result.reviews)}")
+# Iterate directly
+for review in result:
+    print(review.title)
 
-# Check for failures (countries that couldn't be fetched)
-for failure in result.failures:
-    print(f"Failed: {failure.country} -- {failure.error}")
+# Count
+print(f"Reviews: {len(result)}")
 
-# Check for warnings (non-fatal issues)
-for warning in result.warnings:
-    print(f"Warning: {warning.message}")
+# Check if any results
+if result:
+    print("Got reviews!")
+```
 
-# Fetch statistics
-print(f"Countries: {result.stats.total_countries}")
-print(f"Failures: {result.stats.total_failures}")
-print(f"Duration: {result.stats.duration_seconds:.1f}s")
+### Filter after fetching
+
+```python
+from datetime import date
+
+# Filter without making another network request
+bad_recent = result.filter(ratings=[1, 2], since=date(2025, 1, 1))
+
+for review in bad_recent:
+    print(f"{review.rating}* {review.body[:80]}")
+```
+
+### Check succeeded and failed countries
+
+```python
+print(f"Succeeded: {[cs.country for cs in result.succeeded]}")
+
+if result.failed:
+    for cs in result.failed:
+        print(f"Failed: {cs.country} -- {cs.error}")
+```
+
+### Export to dicts or DataFrame
+
+```python
+# List of plain dicts
+records = result.to_dicts()
+
+# pandas DataFrame (requires pandas)
+df = result.to_df()
+print(df[["rating", "title", "country"]].head())
 ```
 
 ### Access review fields
 
 ```python
-for review in result.reviews:
-    print(f"ID:       {review.review_id}")
+for review in result:
+    print(f"ID:       {review.id}")
     print(f"Store:    {review.store}")       # "appstore" or "googleplay"
     print(f"App:      {review.app_id}")
     print(f"Country:  {review.country}")
@@ -274,34 +383,72 @@ for review in result.reviews:
     print(f"Date:     {review.created_at}")
     print(f"Edited:   {review.is_edited}")
     print(f"Source:   {review.source}")      # e.g. "appstore_scraper"
+    print(f"Raw:      {review.raw}")         # raw API payload, if requested
     print()
 ```
 
 ### Error handling
 
-The `fetch()` method does not raise exceptions for partial failures. If some countries fail and others succeed, you get the successful reviews plus a list of failures.
+The `fetch()` method does not raise exceptions for partial failures. If some countries fail and others succeed, you get the successful reviews plus a list of failures in `result.failed`.
 
 ```python
-result = scraper.fetch()
+result = client.fetch("123456789")
 
-if not result.reviews and result.failures:
+if not result and result.failed:
     # Everything failed
     print("All fetches failed:")
-    for f in result.failures:
-        print(f"  {f.country}: {f.error}")
-elif result.failures:
+    for cs in result.failed:
+        print(f"  {cs.country}: {cs.error}")
+elif result.failed:
     # Partial success
-    print(f"Got {len(result.reviews)} reviews, but some countries failed:")
-    for f in result.failures:
-        print(f"  {f.country}: {f.error}")
+    print(f"Got {len(result)} reviews, but some countries failed:")
+    for cs in result.failed:
+        print(f"  {cs.country}: {cs.error}")
 else:
     # Full success
-    print(f"Got {len(result.reviews)} reviews")
+    print(f"Got {len(result)} reviews")
 ```
 
-If you pass invalid configuration (e.g., `provider="official"` without credentials, or both `app_id` and `app_ids`), the scraper raises a `ValueError` immediately.
+If you pass invalid configuration (e.g., malformed auth credentials), the client raises a `ValueError` immediately.
 
-### Look up app metadata
+---
+
+## Callbacks
+
+Use callbacks to react to reviews as they are fetched, without waiting for the entire operation to complete.
+
+```python
+from app_reviews import AppStoreReviews, Review
+
+def handle_review(review: Review) -> None:
+    print(f"Got review: {review.rating}* {review.title}")
+
+client = AppStoreReviews(on_review=handle_review)
+result = client.fetch("123456789")
+```
+
+For more control, implement the `FetchCallback` protocol:
+
+```python
+from app_reviews import FetchCallback, Review
+
+class MyCallback:
+    def on_start(self, app_id: str) -> None:
+        print(f"Starting fetch for {app_id}")
+
+    def on_review(self, review: Review) -> None:
+        print(f"  {review.rating}* {review.title}")
+
+    def on_end(self, app_id: str, total: int) -> None:
+        print(f"Done: {total} reviews for {app_id}")
+
+client = AppStoreReviews(callbacks=[MyCallback()])
+result = client.fetch("123456789")
+```
+
+---
+
+## Look Up App Metadata
 
 You can look up app metadata without fetching reviews:
 
@@ -325,4 +472,22 @@ You can also specify the store explicitly:
 
 ```python
 metadata = lookup_metadata("com.example.app", store="googleplay")
+```
+
+---
+
+## Legacy API
+
+The old class names still work but emit a deprecation warning. Update your code when convenient.
+
+```python
+# Deprecated — use AppStoreReviews instead
+from app_reviews import AppStoreScraper
+scraper = AppStoreScraper(app_id="123456789", countries=["us"])
+result = scraper.fetch()
+
+# Deprecated — use GooglePlayReviews instead
+from app_reviews import GooglePlayScraper
+scraper = GooglePlayScraper(app_id="com.example.app")
+result = scraper.fetch()
 ```

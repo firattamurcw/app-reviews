@@ -21,7 +21,7 @@ Fetching app reviews should be simple. In practice, it is not:
 - Google rate-limits aggressively, Apple requires JWT signing
 - Most existing tools only support one store
 
-**App Reviews** handles all of this behind a single `scraper.fetch()` call. It works out of the box with no API keys, and optionally supports authenticated APIs for more data.
+**App Reviews** handles all of this behind a single `client.fetch()` call. It works out of the box with no API keys, and optionally supports authenticated APIs for more data.
 
 ## Install
 
@@ -32,20 +32,31 @@ pip install app-reviews
 ## Quick Start
 
 ```python
-from app_reviews import AppStoreScraper, GooglePlayScraper
+from app_reviews import AppStoreReviews, GooglePlayReviews, AppStoreAuth, Country
 
 # Apple App Store – Spotify
-apple = AppStoreScraper(app_id="324684580", countries=["us", "gb"])
-result = apple.fetch()
+# Client holds connection config; fetch() takes the app ID and query params
+client = AppStoreReviews(
+    auth=AppStoreAuth(
+        key_id="ABC123DEF4",
+        issuer_id="12345678-1234-1234-1234-123456789012",
+        key_path="/path/to/AuthKey.p8",
+    )
+)
+result = client.fetch("324684580", countries=[Country.US, Country.GB])
 
-for review in result.reviews:
+for review in result:
     print(f"[{review.country}] {review.rating}★ {review.title}")
 
-# Google Play Store – Instagram
-google = GooglePlayScraper(app_id="com.instagram.android", countries=["us", "gb"])
-result = google.fetch()
+# Reuse the same client for multiple apps
+spotify = client.fetch("324684580")
+instagram = client.fetch("389801252", countries=[Country.US])
 
-for review in result.reviews:
+# Google Play Store – Instagram (no auth required)
+gp = GooglePlayReviews()
+result = gp.fetch("com.instagram.android", countries=[Country.US, Country.GB])
+
+for review in result:
     print(f"[{review.country}] {review.rating}★ {review.body[:80]}")
 ```
 

@@ -1,6 +1,6 @@
 # Authentication
 
-Both stores work **without any authentication**. The default providers (`"scraper"` for both stores) are free and require no setup.
+Both stores work **without any authentication**. The default providers use public endpoints and require no setup.
 
 If you need higher rate limits or more complete data, you can set up authenticated access using the official store APIs. This page walks through the setup for each store.
 
@@ -48,37 +48,32 @@ Save it somewhere safe, like `~/.appstore-keys/AuthKey_ABC123DEF4.p8`.
 
 **Step 5: Use the Credentials**
 
-Pass the three values to `AppStoreScraper`:
+Pass the credentials to `AppStoreReviews` via `AppStoreAuth`:
 
 ```python
-from app_reviews import AppStoreScraper
+from app_reviews import AppStoreReviews, AppStoreAuth, Country
 
-scraper = AppStoreScraper(
-    app_id="123456789",
-    provider="official",
-    key_id="ABC123DEF4",
-    issuer_id="12345678-1234-1234-1234-123456789012",
-    key_path="/path/to/AuthKey_ABC123DEF4.p8",
+client = AppStoreReviews(
+    auth=AppStoreAuth(
+        key_id="ABC123DEF4",
+        issuer_id="12345678-1234-1234-1234-123456789012",
+        key_path="/path/to/AuthKey_ABC123DEF4.p8",
+    )
 )
 
-result = scraper.fetch()
+result = client.fetch("123456789", countries=[Country.US, Country.GB])
 ```
 
-### Auto Provider Selection
+### No Auth (Public RSS Feed)
 
-If you set `provider="auto"` (the default) and provide all three credentials, the scraper automatically uses the official API. If any credential is missing, it falls back to the scraper.
+If you do not provide `auth`, the client automatically uses the public RSS feed:
 
 ```python
-# This uses official API because all credentials are provided
-scraper = AppStoreScraper(
-    app_id="123456789",
-    key_id="ABC123DEF4",
-    issuer_id="12345678-1234-1234-1234-123456789012",
-    key_path="/path/to/AuthKey_ABC123DEF4.p8",
-)
+from app_reviews import AppStoreReviews
 
-# This uses scraper because no credentials are provided
-scraper = AppStoreScraper(app_id="123456789")
+# No auth — uses public RSS feed
+client = AppStoreReviews()
+result = client.fetch("123456789")
 ```
 
 ### How It Works
@@ -130,33 +125,30 @@ Go to the [Google Play Console](https://play.google.com/console/), then **Settin
 
 **Step 6: Use the Credentials**
 
-Pass the path to `GooglePlayScraper`:
+Pass the credentials to `GooglePlayReviews` via `GooglePlayAuth`:
 
 ```python
-from app_reviews import GooglePlayScraper
+from app_reviews import GooglePlayReviews, GooglePlayAuth, Country
 
-scraper = GooglePlayScraper(
-    app_id="com.example.app",
-    provider="official",
-    service_account_path="/path/to/service-account.json",
+client = GooglePlayReviews(
+    auth=GooglePlayAuth(
+        service_account_path="/path/to/service-account.json",
+    )
 )
 
-result = scraper.fetch()
+result = client.fetch("com.example.app", countries=[Country.US, Country.GB])
 ```
 
-### Auto Provider Selection
+### No Auth (Public Web Endpoint)
 
-If you set `provider="auto"` (the default) and provide `service_account_path`, the scraper automatically uses the official API. If the path is not provided, it falls back to the scraper.
+If you do not provide `auth`, the client automatically uses the public web endpoint:
 
 ```python
-# This uses official API because credentials are provided
-scraper = GooglePlayScraper(
-    app_id="com.example.app",
-    service_account_path="/path/to/service-account.json",
-)
+from app_reviews import GooglePlayReviews
 
-# This uses scraper because no credentials are provided
-scraper = GooglePlayScraper(app_id="com.example.app")
+# No auth — uses public web endpoint
+client = GooglePlayReviews()
+result = client.fetch("com.example.app")
 ```
 
 ### How It Works
