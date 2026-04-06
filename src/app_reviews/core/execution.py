@@ -27,16 +27,16 @@ def _compute_stats(
 
 def _build_provider(config: ReviewConfig) -> ReviewProvider:
     """Build the appropriate provider based on config."""
-    from app_reviews.models.auth import AppStoreAuthConfig
+    from app_reviews.models.auth import AppStoreAuth
 
     provider_name = select_provider(config.store, config.provider, config.auth)
 
     if config.store == "appstore" and provider_name == "official":
         from app_reviews.auth.appstore.connect import ConnectAuth
         from app_reviews.models.auth import ConnectCredentials
-        from app_reviews.providers.appstore.connect import ConnectProvider
+        from app_reviews.providers.appstore.official import ConnectProvider
 
-        assert isinstance(config.auth, AppStoreAuthConfig)
+        assert isinstance(config.auth, AppStoreAuth)
         credentials = ConnectCredentials(
             key_id=config.auth.key_id,
             issuer_id=config.auth.issuer_id,
@@ -48,7 +48,7 @@ def _build_provider(config: ReviewConfig) -> ReviewProvider:
         )
 
     if config.store == "appstore" and provider_name == "scraper":
-        from app_reviews.providers.appstore.rss import RSSProvider
+        from app_reviews.providers.appstore.scraper import RSSProvider
 
         return RSSProvider(countries=config.countries, timeout=config.retry.timeout)
 
@@ -65,12 +65,12 @@ def _build_provider(config: ReviewConfig) -> ReviewProvider:
 
     if config.store == "googleplay" and provider_name == "official":
         from app_reviews.auth.googleplay.service_account import GoogleAuth
-        from app_reviews.models.auth import GooglePlayAuthConfig
-        from app_reviews.providers.googleplay.developer_api import (
+        from app_reviews.models.auth import GooglePlayAuth
+        from app_reviews.providers.googleplay.official import (
             GoogleDeveloperApiProvider,
         )
 
-        assert isinstance(config.auth, GooglePlayAuthConfig)
+        assert isinstance(config.auth, GooglePlayAuth)
         gauth = GoogleAuth(config.auth.service_account_path)
         return GoogleDeveloperApiProvider(
             gauth.authorization_header(), timeout=config.retry.timeout
@@ -90,7 +90,7 @@ def execute_fetch(config: ReviewConfig) -> FetchResult:
     all_failures: list[FetchFailure] = []
 
     for app_id in config.app_ids:
-        result = provider.fetch(app_id, app_id)
+        result = provider.fetch(app_id)
         all_reviews.extend(result.reviews)
         all_failures.extend(result.failures)
 

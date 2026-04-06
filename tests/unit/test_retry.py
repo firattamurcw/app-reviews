@@ -49,3 +49,13 @@ class TestRetryPolicy:
         policy = RetryPolicy(RetryConfig(backoff_factor=1.0))
         delays = [policy.get_delay(attempt=i) for i in range(3)]
         assert delays[0] < delays[1] < delays[2]
+
+
+def test_retry_config_retry_on_defaults():
+    config = RetryConfig()
+    assert config.retry_on == [429, 503]
+
+
+def test_retry_config_retry_on_custom():
+    config = RetryConfig(retry_on=[500, 502])
+    assert config.retry_on == [500, 502]

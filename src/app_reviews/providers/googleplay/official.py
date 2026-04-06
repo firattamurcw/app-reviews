@@ -19,7 +19,7 @@ _REVIEWS_URL_TEMPLATE = (
 )
 
 
-def _map_entry(entry: dict[str, Any], app_id: str, app_input: str) -> Review:
+def _map_entry(entry: dict[str, Any], app_id: str) -> Review:
     """Map a Google Developer API review entry to a Review."""
     review_id = entry["reviewId"]
     comment = entry["comments"][0]["userComment"]
@@ -36,10 +36,7 @@ def _map_entry(entry: dict[str, Any], app_id: str, app_input: str) -> Review:
 
     return Review(
         store="googleplay",
-        review_id=f"googleplay_official-{review_id}",
-        canonical_key=f"{app_id}-{review_id}",
         app_id=app_id,
-        app_input=app_input,
         country="",
         rating=rating,
         title="",
@@ -48,9 +45,9 @@ def _map_entry(entry: dict[str, Any], app_id: str, app_input: str) -> Review:
         app_version=app_version,
         created_at=created_at,
         source="googleplay_official",
-        source_review_id=review_id,
-        source_payload=entry,
+        raw=entry,
         fetched_at=datetime.now(tz=UTC),
+        id=f"googleplay_official-{review_id}",
     )
 
 
@@ -65,7 +62,7 @@ class GoogleDeveloperApiProvider:
         self._auth_header = auth_header
         self._timeout = timeout
 
-    def fetch(self, app_id: str, app_input: str) -> FetchResult:
+    def fetch(self, app_id: str) -> FetchResult:
         all_reviews: list[Review] = []
         all_failures: list[FetchFailure] = []
         base_url = _REVIEWS_URL_TEMPLATE.format(app_id=app_id)
@@ -91,7 +88,7 @@ class GoogleDeveloperApiProvider:
 
             data = json.loads(response.body)
             for entry in data.get("reviews", []):
-                all_reviews.append(_map_entry(entry, app_id, app_input))
+                all_reviews.append(_map_entry(entry, app_id))
 
             next_token = data.get("tokenPagination", {}).get("nextPageToken")
             if not next_token:

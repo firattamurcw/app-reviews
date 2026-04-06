@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
-class AppStoreAuthConfig:
+class AppStoreAuth:
     """Apple App Store Connect API credentials."""
 
     key_id: str
@@ -13,7 +13,7 @@ class AppStoreAuthConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class GooglePlayAuthConfig:
+class GooglePlayAuth:
     """Google Play Developer API credentials."""
 
     service_account_path: str
@@ -36,3 +36,8 @@ class ConnectCredentials:
             raise ValueError("private_key must not be empty.")
         if "-----BEGIN" not in self.private_key:
             raise ValueError("private_key must be a PEM-encoded key.")
+
+
+# Backward-compatible aliases
+AppStoreAuthConfig = AppStoreAuth
+GooglePlayAuthConfig = GooglePlayAuth

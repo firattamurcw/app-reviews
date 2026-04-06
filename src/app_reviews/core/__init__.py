@@ -7,12 +7,12 @@ from app_reviews.core.filters import filter_by_rating, sort_reviews
 from app_reviews.core.inputs import (
     ALL_COUNTRIES,
     COUNTRIES,
-    Country,
     normalize_app_id,
     normalize_app_ids,
     normalize_countries,
 )
 from app_reviews.core.provider_selection import select_provider
+from app_reviews.models.country import Country
 
 __all__ = [
     "ALL_COUNTRIES",
