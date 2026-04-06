@@ -39,10 +39,10 @@ def dedupe_reviews(reviews: list[Review]) -> list[Review]:
     if not reviews:
         return []
 
-    # --- Pass 1: exact canonical_key deduplication ---
+    # --- Pass 1: exact id deduplication ---
     by_key: dict[str, Review] = {}
     for review in reviews:
-        key = review.canonical_key
+        key = review.id
         if key in by_key:
             by_key[key] = _best_of(by_key[key], review)
         else:
