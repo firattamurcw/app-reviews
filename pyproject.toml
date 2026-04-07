@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "app-reviews"
-version = "v0.2.0"
+version = "0.2.1"
 description = "The go-to Python package for App Store and Google Play review extraction"
 readme = "README.md"
 license = "MIT"
