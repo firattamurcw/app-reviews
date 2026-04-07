@@ -149,6 +149,25 @@ class TestRssProvider:
         assert result.failures[0].country == "gb"
 
     @patch("app_reviews.providers.appstore.scraper.http_get")
+    def test_non_review_entries_are_skipped(self, mock_get: Any) -> None:
+        """Feed may contain app metadata (dict with string id) or plain strings."""
+        app_metadata = {
+            "id": "https://apps.apple.com/us/app/id12345",
+            "im:rating": {"label": "4"},
+            "im:name": {"label": "My App"},
+        }
+        review = _rss_entry()
+        mock_get.return_value = _rss_response(
+            ["some-string-entry", app_metadata, review]
+        )
+
+        provider = RSSProvider(countries=["us"])
+        result = provider.fetch("12345")
+
+        assert len(result.reviews) == 1
+        assert result.reviews[0].id == "appstore_scraper-111"
+
+    @patch("app_reviews.providers.appstore.scraper.http_get")
     def test_empty_feed_returns_no_reviews(self, mock_get: Any) -> None:
         mock_get.return_value = _rss_response([])
 

@@ -45,7 +45,11 @@ def _parse_entries(response: HttpResponse, app_id: str, country: str) -> list[Re
     data = json.loads(response.body)
     entries = data.get("feed", {}).get("entry", [])
     return [
-        _map_entry(entry, app_id, country) for entry in entries if "im:rating" in entry
+        _map_entry(entry, app_id, country)
+        for entry in entries
+        if isinstance(entry, dict)
+        and "im:rating" in entry
+        and isinstance(entry.get("id"), dict)
     ]
 
 
