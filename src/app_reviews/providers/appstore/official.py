@@ -5,16 +5,22 @@ from __future__ import annotations
 import json
 import urllib.error
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from app_reviews.models.result import FetchFailure, FetchResult
+from app_reviews.models.result import FetchError
 from app_reviews.models.review import Review
+from app_reviews.providers.base import PageResult
 from app_reviews.utils.http import http_get
+
+if TYPE_CHECKING:
+    from app_reviews.models.retry import RetryConfig
 
 CONNECT_REVIEWS_URL_TEMPLATE = (
     "https://api.appstoreconnect.apple.com/v1/apps/{app_id}/customerReviews"
     "?sort=-createdDate&limit=200"
 )
+
+_PROVIDER = "official"
 
 
 def _map_entry(entry: dict[str, Any], app_id: str) -> Review:
@@ -37,45 +43,46 @@ def _map_entry(entry: dict[str, Any], app_id: str) -> Review:
     )
 
 
-_PROVIDER = "official"
-
-
 class ConnectProvider:
-    """Fetches reviews from the App Store Connect API."""
+    """Fetches one page from the App Store Connect API."""
 
     def __init__(
         self,
         auth_header: str,
         timeout: float = 30.0,
+        proxy: str | None = None,
+        retry: RetryConfig | None = None,
     ) -> None:
         self._auth_header = auth_header
         self._timeout = timeout
+        self._proxy = proxy
+        self._retry = retry
 
-    def fetch(self, app_id: str) -> FetchResult:
-        all_reviews: list[Review] = []
-        all_failures: list[FetchFailure] = []
-        url: str | None = CONNECT_REVIEWS_URL_TEMPLATE.format(app_id=app_id)
+    def countries(self, requested: list[str]) -> list[str]:
+        """Connect API is global — always one call."""
+        return [""]
 
-        while url:
-            try:
-                response = http_get(
-                    url,
-                    headers={"Authorization": self._auth_header},
-                    timeout=self._timeout,
-                )
-            except urllib.error.URLError as exc:
-                all_failures.append(FetchFailure.create(app_id, _PROVIDER, str(exc)))
-                break
+    def fetch_page(self, app_id: str, country: str, cursor: str | None) -> PageResult:
+        """Fetch one page. cursor is the next URL from previous response."""
+        url = cursor or CONNECT_REVIEWS_URL_TEMPLATE.format(app_id=app_id)
 
-            if response.status != 200:
-                all_failures.append(
-                    FetchFailure.create(app_id, _PROVIDER, f"HTTP {response.status}")
-                )
-                break
+        try:
+            response = http_get(
+                url,
+                headers={"Authorization": self._auth_header},
+                timeout=self._timeout,
+                proxy=self._proxy,
+                retry=self._retry,
+            )
+        except urllib.error.URLError as exc:
+            return PageResult(error=FetchError(country="", message=str(exc)))
 
-            data = json.loads(response.body)
-            for entry in data.get("data", []):
-                all_reviews.append(_map_entry(entry, app_id))
-            url = data.get("links", {}).get("next")
+        if response.status != 200:
+            return PageResult(
+                error=FetchError(country="", message=f"HTTP {response.status}")
+            )
 
-        return FetchResult(reviews=all_reviews, failures=all_failures)
+        data = json.loads(response.body)
+        reviews = [_map_entry(e, app_id) for e in data.get("data", [])]
+        next_cursor: str | None = data.get("links", {}).get("next")
+        return PageResult(reviews=reviews, next_cursor=next_cursor)

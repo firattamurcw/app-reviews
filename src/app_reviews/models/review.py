@@ -19,11 +19,11 @@ class Review:
     body: str
     author_name: str
     created_at: datetime
+    source: Source
     app_version: str | None = None
     updated_at: datetime | None = None
     language: str | None = None
     id: str = ""
-    source: Source = "appstore_scraper"
     fetched_at: datetime | None = None
     is_edited: bool = False
     raw: dict[str, Any] | None = None

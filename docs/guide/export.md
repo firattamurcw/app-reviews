@@ -1,54 +1,22 @@
 # Export Formats
 
-App Reviews supports four export formats: **table**, **JSON**, **JSONL**, and **CSV**. You can export from the CLI or from Python.
+App Reviews supports three export formats: **JSON**, **JSONL**, and **CSV**.
 
 ---
 
 ## Formats at a Glance
 
-| Format | Best For | File Support |
-|--------|----------|--------------|
-| **Table** | Quick terminal viewing. Human-readable with a rating distribution summary. | Terminal only, not file export. |
-| **JSON** | Programmatic use, API responses, storing structured data. | Yes |
-| **JSONL** | Streaming, large datasets, line-by-line processing. | Yes |
-| **CSV** | Spreadsheets, data analysis, importing into other tools. | Yes |
-
----
-
-## Table
-
-The default format. Prints a human-readable table with a rating distribution bar at the top.
-
-### CLI
-
-```bash
-app-reviews fetch 123456789
-app-reviews fetch 123456789 -f table
-```
-
-!!! note
-    Table format is for terminal display only. It cannot be written to a file with `--output`. Use JSON, JSONL, or CSV for file export.
+| Format | Best For |
+|--------|----------|
+| **JSON** | Programmatic use, API responses, structured data |
+| **JSONL** | Streaming, large datasets, line-by-line processing |
+| **CSV** | Spreadsheets, data analysis, importing into other tools |
 
 ---
 
 ## JSON
 
-Exports reviews as a JSON array. Each review is a JSON object.
-
-### CLI
-
-```bash
-# Print to terminal
-app-reviews fetch 123456789 -f json
-
-# Save to file
-app-reviews fetch 123456789 -f json -o reviews.json
-
-# Include the raw API response in each review
-app-reviews fetch 123456789 -f json --include-raw -o reviews.json
-```
-
-### Python
+Exports reviews as a JSON array.
 
 ```python
 from app_reviews import AppStoreReviews
@@ -57,32 +25,29 @@ from app_reviews.exporters.json import export_json
 client = AppStoreReviews()
 result = client.fetch("123456789")
 
-# Get JSON as a string
-json_text = export_json(list(result))
-print(json_text)
+# Get JSON string
+json_text = export_json(result.reviews)
 
-# Write to a file
-export_json(list(result), output="reviews.json")
+# Write to file
+export_json(result.reviews, output="reviews.json")
 
-# Overwrite an existing file
-export_json(list(result), output="reviews.json", overwrite=True)
+# Overwrite existing file
+export_json(result.reviews, output="reviews.json", overwrite=True)
 
-# Include the raw API response payload
-export_json(list(result), output="reviews.json", include_raw=True)
+# Include raw API payload
+export_json(result.reviews, output="reviews.json", include_raw=True)
 ```
 
 ### Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `reviews` | `list[Review]` | Required | The list of reviews to export. |
-| `output` | `str`, `Path`, or `None` | `None` | File path to write to. If `None`, only returns the string. |
-| `overwrite` | `bool` | `False` | If `True`, overwrite the file if it exists. If `False`, raise `FileExistsError`. |
-| `include_raw` | `bool` | `False` | If `True`, include the `raw` field (the raw API response) in each review. |
+| `reviews` | `list[Review]` | Required | Reviews to export. |
+| `output` | `str`, `Path`, or `None` | `None` | File path. If `None`, only returns the string. |
+| `overwrite` | `bool` | `False` | Overwrite if file exists. |
+| `include_raw` | `bool` | `False` | Include raw API response per review. |
 
 ### Output Structure
-
-The output is a JSON array:
 
 ```json
 [
@@ -110,22 +75,7 @@ The output is a JSON array:
 
 ## JSONL
 
-Exports reviews as newline-delimited JSON. Each line is one review as a complete JSON object. This format is useful for streaming and processing large datasets line by line, since you do not need to parse the entire file into memory.
-
-### CLI
-
-```bash
-# Print to terminal
-app-reviews fetch 123456789 -f jsonl
-
-# Save to file
-app-reviews fetch 123456789 -f jsonl -o reviews.jsonl
-
-# Include raw API response
-app-reviews fetch 123456789 -f jsonl --include-raw -o reviews.jsonl
-```
-
-### Python
+Exports reviews as newline-delimited JSON. Each line is one review. Useful for streaming and large datasets.
 
 ```python
 from app_reviews import AppStoreReviews
@@ -134,58 +84,37 @@ from app_reviews.exporters.jsonl import export_jsonl
 client = AppStoreReviews()
 result = client.fetch("123456789")
 
-# Get JSONL as a string
-jsonl_text = export_jsonl(list(result))
-print(jsonl_text)
+# Get JSONL string
+jsonl_text = export_jsonl(result.reviews)
 
-# Write to a file
-export_jsonl(list(result), output="reviews.jsonl")
+# Write to file
+export_jsonl(result.reviews, output="reviews.jsonl")
 
-# Overwrite an existing file
-export_jsonl(list(result), output="reviews.jsonl", overwrite=True)
-
-# Include raw API response
-export_jsonl(list(result), output="reviews.jsonl", include_raw=True)
+# Include raw API payload
+export_jsonl(result.reviews, output="reviews.jsonl", include_raw=True)
 ```
 
 ### Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `reviews` | `list[Review]` | Required | The list of reviews to export. |
-| `output` | `str`, `Path`, or `None` | `None` | File path to write to. If `None`, only returns the string. |
-| `overwrite` | `bool` | `False` | If `True`, overwrite the file if it exists. If `False`, raise `FileExistsError`. |
-| `include_raw` | `bool` | `False` | If `True`, include the `raw` field in each review. |
+| `reviews` | `list[Review]` | Required | Reviews to export. |
+| `output` | `str`, `Path`, or `None` | `None` | File path. If `None`, only returns the string. |
+| `overwrite` | `bool` | `False` | Overwrite if file exists. |
+| `include_raw` | `bool` | `False` | Include raw API response per review. |
 
 ### Output Structure
-
-Each line is a complete JSON object:
 
 ```
 {"store": "appstore", "id": "12345", "rating": 5, "title": "Great app", ...}
 {"store": "appstore", "id": "12346", "rating": 3, "title": "OK", ...}
-{"store": "appstore", "id": "12347", "rating": 1, "title": "Crashes", ...}
 ```
-
-Returns an empty string if the review list is empty.
 
 ---
 
 ## CSV
 
 Exports reviews as a standard CSV file with headers.
-
-### CLI
-
-```bash
-# Print to terminal
-app-reviews fetch 123456789 -f csv
-
-# Save to file
-app-reviews fetch 123456789 -f csv -o reviews.csv
-```
-
-### Python
 
 ```python
 from app_reviews import AppStoreReviews
@@ -194,45 +123,24 @@ from app_reviews.exporters.csv import export_csv
 client = AppStoreReviews()
 result = client.fetch("123456789")
 
-# Get CSV as a string
-csv_text = export_csv(list(result))
-print(csv_text)
+# Get CSV string
+csv_text = export_csv(result.reviews)
 
-# Write to a file
-export_csv(list(result), output="reviews.csv")
-
-# Overwrite an existing file
-export_csv(list(result), output="reviews.csv", overwrite=True)
+# Write to file
+export_csv(result.reviews, output="reviews.csv")
 ```
 
 ### Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `reviews` | `list[Review]` | Required | The list of reviews to export. |
-| `output` | `str`, `Path`, or `None` | `None` | File path to write to. If `None`, only returns the string. |
-| `overwrite` | `bool` | `False` | If `True`, overwrite the file if it exists. If `False`, raise `FileExistsError`. |
+| `reviews` | `list[Review]` | Required | Reviews to export. |
+| `output` | `str`, `Path`, or `None` | `None` | File path. If `None`, only returns the string. |
+| `overwrite` | `bool` | `False` | Overwrite if file exists. |
 
 ### CSV Columns
 
-The CSV includes these columns in this order:
-
-| Column | Description |
-|--------|-------------|
-| `id` | Unique review identifier |
-| `app_id` | App ID or package name |
-| `country` | Two-letter country code |
-| `language` | Review language (if available) |
-| `rating` | Star rating (1-5) |
-| `title` | Review title |
-| `body` | Review text |
-| `author_name` | Author display name |
-| `app_version` | App version reviewed (if available) |
-| `created_at` | When the review was posted |
-| `updated_at` | When the review was last edited (if available) |
-| `is_edited` | Whether the review was edited (`True` or `False`) |
-| `source` | Data source (`appstore_scraper`, `appstore_official`, `googleplay_scraper`, or `googleplay_official`) |
-| `fetched_at` | When the review was fetched |
+`id`, `app_id`, `country`, `language`, `rating`, `title`, `body`, `author_name`, `app_version`, `created_at`, `updated_at`, `is_edited`, `source`, `fetched_at`
 
 !!! note
-    CSV does not support the `--include-raw` option. The raw API payload (`raw`) is excluded from CSV output because it contains nested JSON that does not fit the flat CSV format.
+    CSV does not support `include_raw`. The raw API payload is excluded because it contains nested JSON that doesn't fit the flat CSV format.

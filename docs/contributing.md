@@ -1,7 +1,5 @@
 # Contributing
 
-Thanks for your interest in contributing to App Reviews.
-
 ---
 
 ## Getting Started
@@ -9,27 +7,15 @@ Thanks for your interest in contributing to App Reviews.
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/firattamurcw/appstore-reviews.git
-cd appstore-reviews
+git clone https://github.com/firattamurcw/app-reviews.git
+cd app-reviews
 ```
 
 ### Install Dependencies
 
-Install all dependencies including development tools:
-
 ```bash
 uv sync --group dev
 ```
-
-This installs:
-
-- **pytest** -- test runner
-- **pytest-cov** -- code coverage reporting
-- **pytest-asyncio** -- async test support
-- **mypy** -- static type checker (strict mode)
-- **ruff** -- linter and code formatter
-- **pre-commit** -- git pre-commit hooks
-- **textual** -- TUI library (for TUI tests)
 
 ### Set Up Pre-Commit Hooks
 
@@ -37,64 +23,22 @@ This installs:
 pre-commit install
 ```
 
-This runs linting and formatting checks automatically before each commit.
-
 ---
 
 ## Development Commands
 
-The project uses a `Makefile` for common tasks:
-
 | Command | What It Does |
 |---------|-------------|
-| `make install` | Install all dependencies (`uv sync --group dev`) |
-| `make test` | Run the test suite with coverage reporting |
-| `make lint` | Check code style with ruff (no auto-fix) |
-| `make format` | Auto-fix code style and formatting with ruff |
-| `make typecheck` | Run mypy in strict mode |
+| `make install` | Install all dependencies |
+| `make test` | Run tests with coverage |
+| `make lint` | Check code style with ruff |
+| `make format` | Auto-fix style and formatting |
+| `make typecheck` | Run mypy strict |
 | `make build` | Build the package |
-| `make docs` | Build the documentation site |
-| `make docs-serve` | Start a local docs preview server at `http://localhost:8000` |
+| `make docs` | Build documentation |
+| `make docs-serve` | Preview docs at `http://localhost:8000` |
 | `make clean` | Remove build artifacts |
-| `make all` | Run lint + typecheck + test + build (the full check) |
-
-### Run Tests
-
-```bash
-make test
-```
-
-This runs pytest with coverage reporting. The minimum coverage threshold is **75%**. If coverage drops below this, the test run fails.
-
-### Check Code Style
-
-```bash
-make lint
-```
-
-This runs ruff to check for style issues, import ordering, and common mistakes. It does not modify files.
-
-To auto-fix issues:
-
-```bash
-make format
-```
-
-### Type Checking
-
-```bash
-make typecheck
-```
-
-This runs mypy in **strict mode**. All code must pass strict type checking with no errors.
-
-### Run Everything
-
-```bash
-make all
-```
-
-This runs lint, typecheck, test, and build in order. If any step fails, it stops. Run this before opening a pull request.
+| `make all` | Run lint + typecheck + test + build |
 
 ---
 
@@ -103,72 +47,73 @@ This runs lint, typecheck, test, and build in order. If any step fails, it stops
 ```
 src/app_reviews/
 ├── __init__.py             # Public API exports
-├── client.py               # AppStoreReviews & GooglePlayReviews
-├── core/                   # Orchestration and utilities
-│   ├── execution.py        # Main fetch orchestration
-│   ├── provider_selection.py
-│   ├── inputs.py           # App ID / country normalization
-│   ├── dedupe.py           # Deduplication logic
-│   ├── filters.py          # Rating filters and sorting
-│   ├── checkpoints.py      # Fetch resumption
-│   └── json_store.py       # State persistence
+├── errors.py               # Typed exceptions
+├── clients/                # Store clients
+│   ├── base.py             # Base client (pagination, threading)
+│   ├── appstore.py         # AppStoreReviews
+│   └── googleplay.py       # GooglePlayReviews
 ├── providers/              # Data source implementations
 │   ├── base.py             # ReviewProvider protocol
 │   ├── appstore/
-│   │   ├── rss.py          # Public RSS feed
-│   │   └── connect.py      # App Store Connect API
+│   │   ├── official.py     # App Store Connect API
+│   │   └── scraper.py      # Public RSS feed
 │   └── googleplay/
-│       ├── scraper.py       # Web scraper
-│       └── developer_api.py # Google Play Developer API
+│       ├── official.py     # Google Play Developer API
+│       └── scraper.py      # Web scraper
 ├── auth/                   # Authentication
 │   ├── appstore/
-│   │   └── connect.py      # JWT (ES256) for App Store
+│   │   └── connect.py      # JWT (ES256)
 │   └── googleplay/
-│       └── service_account.py  # JWT (RS256) for Google
+│       └── service_account.py  # JWT (RS256)
 ├── exporters/              # Export formats
 │   ├── json.py
 │   ├── jsonl.py
 │   └── csv.py
-├── models/                 # Data models (dataclasses)
-│   ├── review.py
-│   ├── result.py
-│   ├── config.py
-│   ├── auth.py
-│   ├── types.py
-│   └── ...
-├── utils/                  # Shared utilities
-│   ├── http.py             # HTTP client (stdlib urllib)
-│   ├── jwt.py              # JWT encoding
-│   ├── metadata.py         # App metadata lookup
-│   ├── retry.py            # Retry logic
-│   └── text.py             # Text cleaning
-└── tui/                    # Interactive terminal UI
-    ├── __init__.py
-    ├── app.py
-    ├── screens/
-    └── widgets/
+├── models/                 # Data models (frozen dataclasses)
+│   ├── auth.py             # Auth credentials
+│   ├── country.py          # Country enum + region groups
+│   ├── metadata.py         # AppMetadata
+│   ├── result.py           # FetchResult, FetchError
+│   ├── retry.py            # RetryConfig
+│   ├── review.py           # Review
+│   ├── sort.py             # Sort enum
+│   └── types.py            # Literal type aliases
+└── utils/                  # Shared utilities
+    ├── http.py             # HTTP client (stdlib urllib)
+    ├── jwt.py              # JWT encoding
+    ├── metadata.py         # App metadata lookup
+    ├── parsing.py          # Input parsing and store detection
+    ├── retry.py            # Retry logic
+    └── text.py             # Text cleaning
+
+src/app_reviews_tui/        # Interactive terminal UI (separate package)
+├── __init__.py
+├── app.py
+├── sorting.py
+├── screens/
+└── widgets/
 ```
 
 ---
 
 ## Code Standards
 
-- **Python 3.11+** -- use modern syntax (type unions with `|`, `match` statements, etc.)
+- **Python 3.11+** -- use modern syntax (`|` unions, etc.)
 - **Strict mypy** -- all code must pass `mypy --strict`
 - **Ruff** -- code must pass ruff linting and formatting
-- **75%+ test coverage** -- coverage must not drop below 75%
-- **Frozen dataclasses** -- all models use `@dataclass(frozen=True, slots=True)`
-- **Stdlib HTTP** -- no third-party HTTP libraries. Use `urllib` via `utils/http.py`
-- **One runtime dependency** -- `cryptography` for JWT. Keep dependencies minimal.
+- **75%+ test coverage**
+- **Frozen dataclasses** -- `@dataclass(frozen=True, slots=True)`
+- **Stdlib HTTP** -- `urllib` only, no third-party HTTP libraries
+- **One runtime dependency** -- `cryptography` for JWT
 
 ---
 
 ## Submitting Changes
 
-1. **Open an issue first** for large changes so we can discuss the approach
+1. **Open an issue first** for large changes
 2. **Create a branch** from `main`
-3. **Make your changes** and add tests for new functionality.
-4. **Run `make all`** to check lint, types, and tests.
-5. **Open a pull request** against `main`.
+3. **Make your changes** and add tests
+4. **Run `make all`**
+5. **Open a pull request** against `main`
 
-For small fixes (typos, docs, minor bugs), you can skip the issue and go straight to a PR.
+For small fixes, go straight to a PR.

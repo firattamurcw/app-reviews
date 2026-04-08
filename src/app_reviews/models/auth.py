@@ -36,3 +36,22 @@ class ConnectCredentials:
             raise ValueError("private_key must not be empty.")
         if "-----BEGIN" not in self.private_key:
             raise ValueError("private_key must be a PEM-encoded key.")
+
+
+@dataclass(frozen=True, slots=True)
+class ServiceAccountCredentials:
+    """Validated credentials for Google Play service account authentication."""
+
+    client_email: str
+    private_key_pem: str
+    token_uri: str
+
+    def __post_init__(self) -> None:
+        if not self.client_email:
+            raise ValueError("client_email must not be empty.")
+        if not self.private_key_pem:
+            raise ValueError("private_key_pem must not be empty.")
+        if "-----BEGIN" not in self.private_key_pem:
+            raise ValueError("private_key_pem must be a PEM-encoded key.")
+        if not self.token_uri:
+            raise ValueError("token_uri must not be empty.")

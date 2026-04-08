@@ -46,9 +46,8 @@ nav:
       - Installation: getting-started/installation.md
       - Quick Start: getting-started/quickstart.md
   - Guide:
-      - CLI: guide/cli.md
-      - Interactive TUI: guide/tui.md
       - Python API: guide/python-api.md
+      - Interactive TUI: guide/tui.md
       - Authentication: guide/authentication.md
       - Export Formats: guide/export.md
   - Reference:

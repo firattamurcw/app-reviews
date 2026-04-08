@@ -1,4 +1,4 @@
-"""Country StrEnum with region groups."""
+"""Country StrEnum with region groups and display utilities."""
 
 from __future__ import annotations
 

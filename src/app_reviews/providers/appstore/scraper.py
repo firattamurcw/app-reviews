@@ -5,12 +5,16 @@ from __future__ import annotations
 import json
 import urllib.error
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from app_reviews.models.result import FetchFailure, FetchResult
+from app_reviews.models.result import FetchError
 from app_reviews.models.review import Review
-from app_reviews.utils.http import HttpResponse, http_get
+from app_reviews.providers.base import PageResult
+from app_reviews.utils.http import http_get
 from app_reviews.utils.text import clean_text
+
+if TYPE_CHECKING:
+    from app_reviews.models.retry import RetryConfig
 
 _PROVIDER = "scraper"
 
@@ -41,8 +45,8 @@ def _map_entry(entry: dict[str, Any], app_id: str, country: str) -> Review:
     )
 
 
-def _parse_entries(response: HttpResponse, app_id: str, country: str) -> list[Review]:
-    data = json.loads(response.body)
+def _parse_entries(response_body: str, app_id: str, country: str) -> list[Review]:
+    data = json.loads(response_body)
     entries = data.get("feed", {}).get("entry", [])
     return [
         _map_entry(entry, app_id, country)
@@ -54,46 +58,47 @@ def _parse_entries(response: HttpResponse, app_id: str, country: str) -> list[Re
 
 
 class RSSProvider:
-    """Fetches reviews from the App Store RSS feed."""
+    """Fetches one page of App Store RSS reviews per call."""
+
+    _MAX_PAGES = 10
 
     def __init__(
         self,
-        countries: list[str] | None = None,
-        pages: int = 1,
         timeout: float = 30.0,
+        proxy: str | None = None,
+        retry: RetryConfig | None = None,
     ) -> None:
-        self._countries = countries or ["us"]
-        self._pages = pages
         self._timeout = timeout
+        self._proxy = proxy
+        self._retry = retry
 
-    def _fetch_page(self, app_id: str, country: str, page: int) -> FetchResult:
+    def countries(self, requested: list[str]) -> list[str]:
+        """RSS requires one request per country — return all requested."""
+        return requested
+
+    def fetch_page(self, app_id: str, country: str, cursor: str | None) -> PageResult:
+        """Fetch one RSS page. cursor is the page number string (None = page 1)."""
+        page = int(cursor) if cursor else 1
+        if page > self._MAX_PAGES:
+            return PageResult()
+
         url = RSS_URL_TEMPLATE.format(country=country, app_id=app_id, page=page)
+
         try:
-            response = http_get(url, timeout=self._timeout)
-        except urllib.error.URLError as exc:
-            return FetchResult(
-                failures=[FetchFailure.create(app_id, _PROVIDER, str(exc), country)]
+            response = http_get(
+                url,
+                timeout=self._timeout,
+                proxy=self._proxy,
+                retry=self._retry,
             )
+        except urllib.error.URLError as exc:
+            return PageResult(error=FetchError(country=country, message=str(exc)))
 
         if response.status != 200:
-            return FetchResult(
-                failures=[
-                    FetchFailure.create(
-                        app_id, _PROVIDER, f"HTTP {response.status}", country
-                    )
-                ]
+            return PageResult(
+                error=FetchError(country=country, message=f"HTTP {response.status}")
             )
 
-        return FetchResult(reviews=_parse_entries(response, app_id, country))
-
-    def fetch(self, app_id: str) -> FetchResult:
-        all_reviews: list[Review] = []
-        all_failures: list[FetchFailure] = []
-
-        for country in self._countries:
-            for page in range(1, self._pages + 1):
-                result = self._fetch_page(app_id, country, page)
-                all_reviews.extend(result.reviews)
-                all_failures.extend(result.failures)
-
-        return FetchResult(reviews=all_reviews, failures=all_failures)
+        reviews = _parse_entries(response.body, app_id, country)
+        next_cursor = str(page + 1) if reviews else None
+        return PageResult(reviews=reviews, next_cursor=next_cursor)

@@ -1,30 +1,13 @@
-"""CSV exporter for reviews."""
+"""Export reviews as CSV."""
 
 from __future__ import annotations
 
 import csv
-import dataclasses
 import io
 from pathlib import Path
 
+from app_reviews.exporters import CSV_FIELDS, review_to_dict, write_output
 from app_reviews.models.review import Review
-
-_CSV_FIELDS: list[str] = [
-    "id",
-    "app_id",
-    "country",
-    "language",
-    "rating",
-    "title",
-    "body",
-    "author_name",
-    "app_version",
-    "created_at",
-    "updated_at",
-    "is_edited",
-    "source",
-    "fetched_at",
-]
 
 
 def export_csv(
@@ -33,24 +16,26 @@ def export_csv(
     output: str | Path | None = None,
     overwrite: bool = False,
 ) -> str:
-    """Export reviews as CSV. Optionally writes to file."""
+    """Export reviews as a CSV string with a header row.
+
+    Args:
+        reviews: List of Review objects to export.
+        output: Optional file path to write the CSV output.
+        overwrite: If True, overwrite an existing output file.
+
+    Returns:
+        The CSV string, or empty string if no reviews.
+    """
     if not reviews:
         return ""
 
     buf = io.StringIO()
-    writer = csv.DictWriter(buf, fieldnames=_CSV_FIELDS)
+    writer = csv.DictWriter(buf, fieldnames=CSV_FIELDS)
     writer.writeheader()
     for r in reviews:
-        d = dataclasses.asdict(r)
-        row = {k: d.get(k, "") for k in _CSV_FIELDS}
-        writer.writerow(row)
+        d = review_to_dict(r)
+        writer.writerow({k: d.get(k, "") for k in CSV_FIELDS})
 
     text = buf.getvalue()
-
-    if output is not None:
-        p = Path(output)
-        if p.exists() and not overwrite:
-            raise FileExistsError(f"Output file already exists: {p}")
-        p.write_text(text)
-
+    write_output(text, output, overwrite)
     return text

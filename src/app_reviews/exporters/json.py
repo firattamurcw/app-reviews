@@ -1,11 +1,11 @@
-"""JSON exporter for reviews."""
+"""Export reviews as a JSON array."""
 
 from __future__ import annotations
 
-import dataclasses
 import json
 from pathlib import Path
 
+from app_reviews.exporters import review_to_dict, write_output
 from app_reviews.models.review import Review
 
 
@@ -16,20 +16,18 @@ def export_json(
     overwrite: bool = False,
     include_raw: bool = False,
 ) -> str:
-    """Export reviews as a JSON array string. Optionally writes to file."""
-    rows = []
-    for r in reviews:
-        d = dataclasses.asdict(r)
-        if not include_raw:
-            d.pop("raw", None)
-        rows.append(d)
+    """Export reviews as a pretty-printed JSON array string.
 
+    Args:
+        reviews: List of Review objects to export.
+        output: Optional file path to write the JSON output.
+        overwrite: If True, overwrite an existing output file.
+        include_raw: If True, include the raw provider payload in each review.
+
+    Returns:
+        The JSON string.
+    """
+    rows = [review_to_dict(r, include_raw=include_raw) for r in reviews]
     text = json.dumps(rows, indent=2, default=str)
-
-    if output is not None:
-        p = Path(output)
-        if p.exists() and not overwrite:
-            raise FileExistsError(f"Output file already exists: {p}")
-        p.write_text(text)
-
+    write_output(text, output, overwrite)
     return text

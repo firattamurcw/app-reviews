@@ -1,11 +1,11 @@
-"""JSONL exporter for reviews."""
+"""Export reviews as newline-delimited JSON (JSONL)."""
 
 from __future__ import annotations
 
-import dataclasses
 import json
 from pathlib import Path
 
+from app_reviews.exporters import review_to_dict, write_output
 from app_reviews.models.review import Review
 
 
@@ -16,23 +16,24 @@ def export_jsonl(
     overwrite: bool = False,
     include_raw: bool = False,
 ) -> str:
-    """Export reviews as newline-delimited JSON. Optionally writes to file."""
+    """Export reviews as newline-delimited JSON (one JSON object per line).
+
+    Args:
+        reviews: List of Review objects to export.
+        output: Optional file path to write the JSONL output.
+        overwrite: If True, overwrite an existing output file.
+        include_raw: If True, include the raw provider payload in each review.
+
+    Returns:
+        The JSONL string, or empty string if no reviews.
+    """
     if not reviews:
         return ""
 
-    lines = []
-    for r in reviews:
-        d = dataclasses.asdict(r)
-        if not include_raw:
-            d.pop("raw", None)
-        lines.append(json.dumps(d, default=str))
-
+    lines = [
+        json.dumps(review_to_dict(r, include_raw=include_raw), default=str)
+        for r in reviews
+    ]
     text = "\n".join(lines) + "\n"
-
-    if output is not None:
-        p = Path(output)
-        if p.exists() and not overwrite:
-            raise FileExistsError(f"Output file already exists: {p}")
-        p.write_text(text)
-
+    write_output(text, output, overwrite)
     return text

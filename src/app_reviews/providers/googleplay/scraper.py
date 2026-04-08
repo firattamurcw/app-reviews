@@ -5,40 +5,30 @@ from __future__ import annotations
 import json
 import logging
 import re
-import time
 import urllib.error
 import urllib.parse
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from app_reviews.models.result import FetchFailure, FetchResult
+from app_reviews.models.result import FetchError
 from app_reviews.models.review import Review
+from app_reviews.providers.base import PageResult
 from app_reviews.utils.http import http_post
+
+if TYPE_CHECKING:
+    from app_reviews.models.retry import RetryConfig
 
 _PROVIDER = "scraper"
 _LOG = logging.getLogger(__name__)
 
-# Google Play internal batchexecute RPC endpoint.
 _BATCHEXECUTE_URL = "https://play.google.com/_/PlayStoreUi/data/batchexecute"
-
-# Current RPC method for fetching reviews.
 _RPC_ID = "oCPfdb"
 
-# Sort orders supported by the RPC.
 SORT_NEWEST = 2
 SORT_RELEVANT = 1
 SORT_RATING = 3
 
-# Rate-limit detection string in Google's error responses.
-_RATE_LIMIT_MARKER = "PlayGatewayError"
-
-# Prefix Google prepends to batchexecute responses.
 _RESPONSE_PREFIX_RE = re.compile(r"\)]}'\n\n([\s\S]+)")
-
-# Default delay (seconds) multiplied by consecutive rate-limit hits.
-_RATE_LIMIT_DELAY = 5.0
-
-# Max reviews per single RPC call (Google accepts up to ~4500).
 _MAX_BATCH_SIZE = 200
 
 
@@ -50,13 +40,8 @@ def _build_body(
     lang: str = "en",
     country: str = "us",
 ) -> tuple[str, str]:
-    """Build the POST body and full URL for a review fetch RPC.
-
-    Returns (url, encoded_body).
-    """
+    """Build POST body and URL for one review fetch RPC. Returns (url, encoded_body)."""
     pagination = [count, None, page_token] if page_token else [count]
-    # Filter array: [None, score_filter, ..., device_filter]
-    # Leaving all None = no filtering.
     filters = [None] * 9
     inner = json.dumps([None, [2, sort, pagination, None, filters], [app_id, 7]])
     payload = json.dumps([[[_RPC_ID, inner, None, "generic"]]])
@@ -69,17 +54,16 @@ def _build_body(
     return url, body
 
 
-def _parse_response(
-    raw: str,
-) -> tuple[list[list[Any]], str | None]:
-    """Parse batchexecute response → (review_entries, page_token | None)."""
+def _parse_response(raw: str) -> tuple[list[list[Any]], str | None]:
+    """Parse batchexecute response -> (review_entries, page_token | None)."""
     match = _RESPONSE_PREFIX_RE.search(raw)
     if not match:
+        _LOG.warning("Google Play response missing expected prefix")
         return [], None
-
     try:
         outer = json.loads(match.group(1))
     except json.JSONDecodeError:
+        _LOG.warning("Google Play response body is not valid JSON")
         return [], None
 
     for item in outer:
@@ -89,7 +73,6 @@ def _parse_response(
             continue
         if item[2] is None:
             return [], None
-
         try:
             data = json.loads(item[2])
         except json.JSONDecodeError:
@@ -99,8 +82,6 @@ def _parse_response(
         token: str | None = None
         if len(data) > 1 and data[-2]:
             tok = data[-2][-1]
-            # oCPfdb returns a plain string token;
-            # list means end-of-results.
             if isinstance(tok, str):
                 token = tok
         return reviews, token
@@ -108,18 +89,36 @@ def _parse_response(
     return [], None
 
 
+# Indices into the batchexecute review array structure.
+_IDX_REVIEW_ID = 0
+_IDX_AUTHOR_INFO = 1
+_IDX_AUTHOR_NAME = 0
+_IDX_RATING = 2
+_IDX_BODY = 4
+_IDX_TIMESTAMPS = 5
+_IDX_CREATED_TS = 0
+_IDX_UPDATED_TS = 1
+_IDX_APP_VERSION = 10
+
+
 def _to_review(entry: list[Any], app_id: str) -> Review | None:
     """Parse a single review array into a Review."""
     try:
-        review_id = entry[0]
-        author_name = entry[1][0]
-        rating = int(entry[2])
-        body = entry[4] or ""
-        created_ts = entry[5][0]
-        updated_ts = entry[5][1] if len(entry[5]) > 1 else None
-        created_at = datetime.fromtimestamp(created_ts, tz=UTC)
+        review_id = entry[_IDX_REVIEW_ID]
+        author_name = entry[_IDX_AUTHOR_INFO][_IDX_AUTHOR_NAME]
+        rating = int(entry[_IDX_RATING])
+        body = entry[_IDX_BODY] or ""
+        timestamps = entry[_IDX_TIMESTAMPS]
+        created_at = datetime.fromtimestamp(timestamps[_IDX_CREATED_TS], tz=UTC)
+        updated_ts = (
+            timestamps[_IDX_UPDATED_TS] if len(timestamps) > _IDX_UPDATED_TS else None
+        )
         updated_at = datetime.fromtimestamp(updated_ts, tz=UTC) if updated_ts else None
-        app_version = str(entry[10]) if len(entry) > 10 and entry[10] else None
+        app_version = (
+            str(entry[_IDX_APP_VERSION])
+            if len(entry) > _IDX_APP_VERSION and entry[_IDX_APP_VERSION]
+            else None
+        )
 
         return Review(
             store="googleplay",
@@ -138,122 +137,58 @@ def _to_review(entry: list[Any], app_id: str) -> Review | None:
             id=f"googleplay_scraper-{review_id}",
         )
     except (IndexError, TypeError, ValueError):
+        _LOG.warning("Failed to parse review entry for app %s: %r", app_id, entry[:3])
         return None
 
 
-def _request(
-    url: str,
-    body: str,
-    *,
-    timeout: float,
-    max_retries: int,
-) -> str | None:
-    """POST with retry and rate-limit back-off.
-
-    Returns the response body, or None on unrecoverable failure.
-    """
-    rate_hits = 0
-    last_error: str | None = None
-
-    for attempt in range(1, max_retries + 1):
-        try:
-            resp = http_post(
-                url,
-                body=body,
-                headers={
-                    "Content-Type": ("application/x-www-form-urlencoded"),
-                },
-                timeout=timeout,
-            )
-        except urllib.error.URLError as exc:
-            last_error = str(exc)
-            _LOG.debug("attempt %d URLError: %s", attempt, exc)
-            continue
-
-        if resp.status != 200:
-            last_error = f"HTTP {resp.status}"
-            _LOG.debug("attempt %d status %d", attempt, resp.status)
-            continue
-
-        if _RATE_LIMIT_MARKER in resp.body:
-            rate_hits += 1
-            delay = _RATE_LIMIT_DELAY * rate_hits
-            _LOG.warning(
-                "rate-limited, backing off %.1fs (hit #%d)",
-                delay,
-                rate_hits,
-            )
-            time.sleep(delay)
-            continue
-
-        return resp.body
-
-    _LOG.error("all %d attempts failed: %s", max_retries, last_error)
-    return None
-
-
 class GoogleScraperProvider:
-    """Fetches reviews from Google Play via web scraping.
-
-    Uses Google's internal batchexecute RPC (``oCPfdb``).
-    Supports pagination, retry with back-off, and
-    ``hl``/``gl`` locale params.
-    """
+    """Fetches one page from Google Play via batchexecute RPC."""
 
     def __init__(
         self,
         count: int = _MAX_BATCH_SIZE,
         timeout: float = 30.0,
-        max_retries: int = 3,
-        max_reviews: int = 500,
         lang: str = "en",
-        country: str = "us",
+        proxy: str | None = None,
+        retry: RetryConfig | None = None,
     ) -> None:
         self._count = min(count, _MAX_BATCH_SIZE)
         self._timeout = timeout
-        self._max_retries = max_retries
-        self._max_reviews = max_reviews
         self._lang = lang
-        self._country = country
+        self._proxy = proxy
+        self._retry = retry
 
-    def fetch(self, app_id: str) -> FetchResult:
-        all_reviews: list[Review] = []
-        all_failures: list[FetchFailure] = []
-        page_token: str | None = None
+    def countries(self, requested: list[str]) -> list[str]:
+        """Google scraper supports per-country requests — return all requested."""
+        return requested if requested else []
 
-        while len(all_reviews) < self._max_reviews:
-            url, body = _build_body(
-                app_id,
-                count=self._count,
-                page_token=page_token,
-                lang=self._lang,
-                country=self._country,
-            )
+    def fetch_page(self, app_id: str, country: str, cursor: str | None) -> PageResult:
+        """Fetch one page. cursor is the page token from the previous response."""
+        url, body = _build_body(
+            app_id,
+            count=self._count,
+            page_token=cursor,
+            lang=self._lang,
+            country=country or "us",
+        )
 
-            raw = _request(
+        try:
+            resp = http_post(
                 url,
-                body,
+                body=body,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=self._timeout,
-                max_retries=self._max_retries,
+                proxy=self._proxy,
+                retry=self._retry,
             )
-            if raw is None:
-                all_failures.append(
-                    FetchFailure.create(
-                        app_id,
-                        _PROVIDER,
-                        "all retries exhausted",
-                    )
-                )
-                break
+        except urllib.error.URLError as exc:
+            return PageResult(error=FetchError(country=country, message=str(exc)))
 
-            entries, next_token = _parse_response(raw)
-            for entry in entries:
-                review = _to_review(entry, app_id)
-                if review:
-                    all_reviews.append(review)
+        if resp.status != 200:
+            return PageResult(
+                error=FetchError(country=country, message=f"HTTP {resp.status}")
+            )
 
-            if not entries or not next_token:
-                break
-            page_token = next_token
-
-        return FetchResult(reviews=all_reviews, failures=all_failures)
+        entries, next_token = _parse_response(resp.body)
+        reviews = [r for e in entries if (r := _to_review(e, app_id)) is not None]
+        return PageResult(reviews=reviews, next_cursor=next_token)

@@ -1,6 +1,8 @@
+<div align="center">
+
 # App Reviews
 
-Fetch app reviews from the **Apple App Store** and **Google Play Store** with a single Python package.
+**Fetch app reviews from the Apple App Store and Google Play Store with a single Python package.**
 
 [![PyPI](https://img.shields.io/pypi/v/app-reviews.svg)](https://pypi.org/project/app-reviews)
 [![Python](https://img.shields.io/pypi/pyversions/app-reviews.svg)](https://pypi.org/project/app-reviews)
@@ -8,30 +10,19 @@ Fetch app reviews from the **Apple App Store** and **Google Play Store** with a 
 [![License](https://img.shields.io/github/license/firattamurcw/app-reviews)](LICENSE)
 
 [![CI](https://github.com/firattamurcw/app-reviews/actions/workflows/ci.yml/badge.svg)](https://github.com/firattamurcw/app-reviews/actions/workflows/ci.yml)
-[![Scheduled E2E](https://github.com/firattamurcw/app-reviews/actions/workflows/scheduled_e2e_test.yml/badge.svg)](https://github.com/firattamurcw/app-reviews/actions/workflows/scheduled_e2e_test.yml)
 [![Docs](https://github.com/firattamurcw/app-reviews/actions/workflows/docs.yml/badge.svg)](https://firattamurcw.github.io/app-reviews/)
-[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+
+[Documentation](https://firattamurcw.github.io/app-reviews/) · [PyPI](https://pypi.org/project/app-reviews/) · [Contributing](https://firattamurcw.github.io/app-reviews/contributing/)
+
+</div>
+
+---
 
 ## Why App Reviews?
 
-Fetching app reviews should be simple. In practice, it is not:
+Apple and Google use completely different APIs, formats, and auth methods. Getting reviews across multiple countries means juggling separate requests, rate limits, and JWT signing.
 
-- Apple and Google use completely different APIs, formats, and auth methods
-- Getting reviews from multiple countries means handling deduplication
-- Google rate-limits aggressively, Apple requires JWT signing
-- Most existing tools only support one store
-
-**App Reviews** handles all of this behind a single `client.fetch()` call. It works out of the box with no API keys, and optionally supports authenticated APIs for more data.
-
-## Install
-
-```bash
-pip install app-reviews
-```
-
-## Quick Start
-
-### No authentication (public endpoints)
+**App Reviews** handles all of this behind a single `client.fetch()` call -- no API keys required.
 
 ```python
 from app_reviews import AppStoreReviews, Country
@@ -40,8 +31,52 @@ client = AppStoreReviews()
 result = client.fetch("324684580", countries=[Country.US, Country.GB])
 
 for review in result:
-    print(f"[{review.country}] {review.rating}★ {review.title}")
+    print(f"[{review.country}] {review.rating}* {review.title}")
 ```
+
+### Highlights
+
+| | |
+|---|---|
+| **Both stores** | Apple App Store + Google Play in one package |
+| **No API keys** | Works out of the box using public endpoints |
+| **155 countries** | Fetch across regions in a single call |
+| **Official APIs** | Optionally use App Store Connect or Google Play Developer API |
+| **Interactive TUI** | Browse reviews in the terminal |
+| **Export** | JSON, JSONL, CSV |
+| **Minimal deps** | Just `cryptography` for JWT + stdlib `urllib` |
+
+---
+
+## Install
+
+```bash
+pip install app-reviews
+```
+
+Or with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv add app-reviews
+```
+
+---
+
+## Quick Start
+
+### Apple App Store
+
+```python
+from app_reviews import AppStoreReviews, Country
+
+client = AppStoreReviews()
+result = client.fetch("324684580", countries=[Country.US, Country.GB])
+
+for review in result:
+    print(f"[{review.country}] {review.rating}* {review.title}")
+```
+
+### Google Play Store
 
 ```python
 from app_reviews import GooglePlayReviews, Country
@@ -50,10 +85,18 @@ client = GooglePlayReviews()
 result = client.fetch("com.instagram.android", countries=[Country.US])
 
 for review in result:
-    print(f"[{review.country}] {review.rating}★ {review.body[:80]}")
+    print(f"[{review.country}] {review.rating}* {review.body[:80]}")
 ```
 
-### With authentication (official APIs)
+---
+
+## Authentication (Optional)
+
+For higher limits and more data, use the official APIs with your developer credentials.
+
+<summary><b>Apple App Store Connect</b></summary>
+
+Requires an [Apple Developer Program](https://developer.apple.com/programs/) membership ($99/year).
 
 ```python
 from app_reviews import AppStoreReviews, AppStoreAuth, Country
@@ -65,9 +108,12 @@ auth = AppStoreAuth(
 )
 
 client = AppStoreReviews(auth=auth)
-spotify = client.fetch("324684580", countries=[Country.US, Country.GB])
-instagram = client.fetch("389801252", countries=[Country.US])
+result = client.fetch("324684580", countries=[Country.US, Country.GB])
 ```
+
+<summary><b>Google Play Developer API</b></summary>
+
+Requires a [Google Play Developer](https://play.google.com/console/) account ($25 one-time).
 
 ```python
 from app_reviews import GooglePlayReviews, GooglePlayAuth, Country
@@ -78,23 +124,27 @@ client = GooglePlayReviews(auth=auth)
 result = client.fetch("com.instagram.android", countries=[Country.US])
 ```
 
-### Retry and proxy
+---
+
+## Advanced Usage
+
+<summary><b>Retry and proxy</b></summary>
 
 ```python
 from app_reviews import AppStoreReviews, RetryConfig
 
 retry = RetryConfig(
     max_retries=5,       # default: 3
-    backoff_factor=1.0,  # wait 1s, 2s, 4s, ... between retries (default: 0.5)
-    timeout=60.0,        # per-request timeout in seconds (default: 30.0)
-    retry_on=[429, 503], # HTTP status codes to retry on (default: [429, 503])
+    backoff_factor=1.0,  # default: 0.5
+    timeout=60.0,        # default: 30.0
+    retry_on=[429, 503], # default: [500, 502, 503, 504, 429]
 )
 
 client = AppStoreReviews(retry=retry, proxy="http://proxy.example.com:8080")
 result = client.fetch("324684580", countries=["us"])
 ```
 
-### Export results
+<summary><b>Export results</b></summary>
 
 ```python
 from app_reviews import GooglePlayReviews
@@ -110,27 +160,36 @@ export_csv(result.reviews)    # CSV string with headers
 export_jsonl(result.reviews)  # one JSON object per line
 ```
 
-## Features
+<summary><b>Interactive TUI</b></summary>
 
-- **Both stores** -- Apple App Store and Google Play in one package
-- **No API keys required** -- works out of the box using public endpoints
-- **175+ countries** -- fetch and deduplicate across regions in a single call
-- **Official API support** -- optionally use App Store Connect or Google Play Developer API
-- **Python API, CLI, and interactive TUI** -- use it however you prefer
-- **4 export formats** -- table, JSON, JSONL, CSV
-- **Minimal dependencies** -- just `cryptography` for JWT signing, stdlib `urllib` for HTTP
+Browse reviews in the terminal with the built-in TUI:
+
+```bash
+pip install app-reviews[tui]
+app-reviews
+```
+
+---
+
+## Limitations
+
+- **Free scrapers have limits**:
+    - App Store RSS: ~500 most recent reviews.
+    - Google Play scraper: rate-limited and may not return all reviews.
+
+- **No historical data**:
+    - Only the most recent reviews from public endpoints
+
+- **Official APIs require developer accounts**:
+    - Apple ($99/year), Google ($25 one-time)
+
+---
 
 ## Documentation
 
-**[Read the full documentation](https://firattamurcw.github.io/app-reviews/)**
+**[Read the full docs](https://firattamurcw.github.io/app-reviews/)** includes guides on the Python API, TUI, authentication, export formats, and architecture.
 
-- [Installation](https://firattamurcw.github.io/app-reviews/getting-started/installation/) -- all install methods
-- [Quick Start](https://firattamurcw.github.io/app-reviews/getting-started/quickstart/) -- first reviews in 2 minutes
-- [Python API](https://firattamurcw.github.io/app-reviews/guide/python-api/) -- full reference with all parameters
-- [CLI](https://firattamurcw.github.io/app-reviews/guide/cli/) -- command-line usage
-- [Interactive TUI](https://firattamurcw.github.io/app-reviews/guide/tui/) -- browse reviews in your terminal
-- [Authentication](https://firattamurcw.github.io/app-reviews/guide/authentication/) -- set up official APIs
-- [How It Works](https://firattamurcw.github.io/app-reviews/reference/how-it-works/) -- providers, limitations, internals
+---
 
 ## Contributing
 
@@ -141,13 +200,9 @@ uv sync --group dev
 make test
 ```
 
-See the [Contributing Guide](https://firattamurcw.github.io/app-reviews/contributing/) for details.
+See the [Contributing Guide](https://firattamurcw.github.io/app-reviews/contributing/) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security Policy](SECURITY.md)
 
-## Community
-
-- **[Code of Conduct](CODE_OF_CONDUCT.md)** -- our standards for participation
-- **[Security Policy](SECURITY.md)** -- how to report vulnerabilities
-- **[Contributing](https://firattamurcw.github.io/app-reviews/contributing/)** -- how to submit changes
+---
 
 ## License
 

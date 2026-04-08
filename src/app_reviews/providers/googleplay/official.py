@@ -5,11 +5,15 @@ from __future__ import annotations
 import json
 import urllib.error
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from app_reviews.models.result import FetchFailure, FetchResult
+from app_reviews.models.result import FetchError
 from app_reviews.models.review import Review
+from app_reviews.providers.base import PageResult
 from app_reviews.utils.http import http_get
+
+if TYPE_CHECKING:
+    from app_reviews.models.retry import RetryConfig
 
 _PROVIDER = "official"
 
@@ -20,18 +24,13 @@ _REVIEWS_URL_TEMPLATE = (
 
 
 def _map_entry(entry: dict[str, Any], app_id: str) -> Review:
-    """Map a Google Developer API review entry to a Review."""
     review_id = entry["reviewId"]
     comment = entry["comments"][0]["userComment"]
-
     rating = int(comment.get("starRating", 0))
     body = comment.get("text", "")
     app_version = comment.get("appVersionName")
-
-    last_modified = comment.get("lastModified", {})
-    seconds = int(last_modified.get("seconds", 0))
+    seconds = int(comment.get("lastModified", {}).get("seconds", 0))
     created_at = datetime.fromtimestamp(seconds, tz=UTC)
-
     author_name = entry.get("authorName", "")
 
     return Review(
@@ -52,47 +51,49 @@ def _map_entry(entry: dict[str, Any], app_id: str) -> Review:
 
 
 class GoogleDeveloperApiProvider:
-    """Fetches reviews from the Google Play Developer API v3."""
+    """Fetches one page from the Google Play Developer API v3."""
 
     def __init__(
         self,
         auth_header: str,
         timeout: float = 30.0,
+        proxy: str | None = None,
+        retry: RetryConfig | None = None,
     ) -> None:
         self._auth_header = auth_header
         self._timeout = timeout
+        self._proxy = proxy
+        self._retry = retry
 
-    def fetch(self, app_id: str) -> FetchResult:
-        all_reviews: list[Review] = []
-        all_failures: list[FetchFailure] = []
+    def countries(self, requested: list[str]) -> list[str]:
+        """Developer API is global — always one call."""
+        return [""]
+
+    def fetch_page(self, app_id: str, country: str, cursor: str | None) -> PageResult:
+        """Fetch one page. cursor is the nextPageToken from previous response."""
         base_url = _REVIEWS_URL_TEMPLATE.format(app_id=app_id)
         params: dict[str, str] = {}
+        if cursor:
+            params["token"] = cursor
 
-        while True:
-            try:
-                response = http_get(
-                    base_url,
-                    params=params,
-                    headers={"Authorization": self._auth_header},
-                    timeout=self._timeout,
-                )
-            except urllib.error.URLError as exc:
-                all_failures.append(FetchFailure.create(app_id, _PROVIDER, str(exc)))
-                break
+        try:
+            response = http_get(
+                base_url,
+                params=params,
+                headers={"Authorization": self._auth_header},
+                timeout=self._timeout,
+                proxy=self._proxy,
+                retry=self._retry,
+            )
+        except urllib.error.URLError as exc:
+            return PageResult(error=FetchError(country="", message=str(exc)))
 
-            if response.status != 200:
-                all_failures.append(
-                    FetchFailure.create(app_id, _PROVIDER, f"HTTP {response.status}")
-                )
-                break
+        if response.status != 200:
+            return PageResult(
+                error=FetchError(country="", message=f"HTTP {response.status}")
+            )
 
-            data = json.loads(response.body)
-            for entry in data.get("reviews", []):
-                all_reviews.append(_map_entry(entry, app_id))
-
-            next_token = data.get("tokenPagination", {}).get("nextPageToken")
-            if not next_token:
-                break
-            params["token"] = next_token
-
-        return FetchResult(reviews=all_reviews, failures=all_failures)
+        data = json.loads(response.body)
+        reviews = [_map_entry(e, app_id) for e in data.get("reviews", [])]
+        next_cursor: str | None = data.get("tokenPagination", {}).get("nextPageToken")
+        return PageResult(reviews=reviews, next_cursor=next_cursor)

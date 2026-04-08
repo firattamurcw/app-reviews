@@ -31,7 +31,7 @@ dependencies = [
 tui = ["textual==8.2.1"]
 
 [project.scripts]
-app-reviews = "app_reviews.tui:main"
+app-reviews = "app_reviews_tui:main"
 
 [project.urls]
 Homepage = "https://github.com/firattamurcw/app-reviews"
@@ -59,7 +59,7 @@ line-length = 88
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app_reviews"]
+known-first-party = ["app_reviews", "app_reviews_tui"]
 
 [tool.mypy]
 strict = true
@@ -71,7 +71,7 @@ markers = ["live: live E2E tests that hit real store endpoints (skipped by defau
 addopts = "-m 'not live'"
 
 [tool.coverage.run]
-source = ["app_reviews"]
+source = ["app_reviews", "app_reviews_tui"]
 branch = true
 
 [tool.coverage.report]

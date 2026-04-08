@@ -10,7 +10,7 @@ class RetryConfig:
     max_retries: int = 3
     backoff_factor: float = 0.5
     timeout: float = 30.0
-    retry_on: list[int] = field(default_factory=lambda: [429, 503])
+    retry_on: list[int] = field(default_factory=lambda: [500, 502, 503, 504, 429])
 
     def __post_init__(self) -> None:
         if self.max_retries < 0:
