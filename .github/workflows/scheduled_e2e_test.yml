@@ -28,7 +28,7 @@ jobs:
         id: e2e
         run: |
           set +e
-          uv run python -m pytest tests/e2e/test_live.py -m live -v -s --tb=long 2>&1 | tee e2e_output.txt
+          uv run python -m pytest tests/app_reviews/e2e/test_live.py -m live -v -s --tb=long 2>&1 | tee e2e_output.txt
           echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
       - name: Create issue on failure
