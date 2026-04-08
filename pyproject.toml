@@ -38,6 +38,9 @@ Homepage = "https://github.com/firattamurcw/app-reviews"
 Repository = "https://github.com/firattamurcw/app-reviews"
 Issues = "https://github.com/firattamurcw/app-reviews/issues"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/app_reviews", "src/app_reviews_tui"]
+
 [dependency-groups]
 dev = [
     "pytest==9.0.2",
