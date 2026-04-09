@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-tui = ["textual==8.2.1"]
+tui = ["textual==8.2.3"]
 
 [project.scripts]
 app-reviews = "app_reviews_tui:main"
@@ -50,7 +50,7 @@ dev = [
     "pandas-stubs>=2.0",
     "ruff==0.15.8",
     "pre-commit==4.5.1",
-    "textual==8.2.1",
+    "textual==8.2.3",
     "mkdocs-material>=9.6",
 ]
 
