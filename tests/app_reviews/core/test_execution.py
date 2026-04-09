@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 from conftest import make_review
 
-from app_reviews.clients.base import BaseReviews
+from app_reviews.clients.base_reviews import BaseReviews
 from app_reviews.models.result import FetchError
 from app_reviews.providers.base import PageResult
 

@@ -1,6 +1,6 @@
 # Python API
 
-Two main classes: `AppStoreReviews` and `GooglePlayReviews`. Both follow the same pattern -- create a client, then call `fetch()`.
+Four main classes -- two for reviews, two for search and lookup. All follow the same pattern: create a client, call a method.
 
 ---
 
@@ -204,27 +204,28 @@ if result.errors:
 records = result.to_dicts()
 ```
 
-### Review fields
+### Review
 
-```python
-for review in result:
-    review.id            # unique identifier
-    review.store         # "appstore" or "googleplay"
-    review.app_id        # app ID or package name
-    review.country       # two-letter country code
-    review.rating        # 1 to 5
-    review.title         # may be empty for Google Play
-    review.body          # review text
-    review.author_name   # display name
-    review.app_version   # may be None
-    review.created_at    # datetime
-    review.updated_at    # datetime or None
-    review.is_edited     # bool
-    review.source        # e.g. "appstore_scraper"
-    review.language      # e.g. "en" or None
-    review.fetched_at    # datetime or None
-    review.raw           # raw API payload or None
-```
+`fetch()` returns a `FetchResult` containing `Review` objects -- frozen dataclasses with these fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `str` | Unique review identifier |
+| `store` | `Store` | `"appstore"` or `"googleplay"` |
+| `app_id` | `str` | App Store ID or package name |
+| `country` | `str` | Two-letter country code |
+| `rating` | `int` | Star rating (`1` -- `5`) |
+| `title` | `str` | Review title (may be empty for Google Play) |
+| `body` | `str` | Review text |
+| `author_name` | `str` | Reviewer display name |
+| `app_version` | `str \| None` | App version at time of review |
+| `created_at` | `datetime` | When the review was posted |
+| `updated_at` | `datetime \| None` | When the review was last edited |
+| `is_edited` | `bool` | Whether the review was edited |
+| `source` | `Source` | Provider (e.g. `"appstore_scraper"`, `"googleplay_official"`) |
+| `language` | `str \| None` | Review language code |
+| `fetched_at` | `datetime \| None` | When the review was fetched |
+| `raw` | `dict \| None` | Raw API response payload |
 
 ### Error handling
 
@@ -245,25 +246,113 @@ elif result.errors:
 
 ---
 
-## Look Up App Metadata
+## App Search & Lookup
+
+Search for apps by keyword and look up app metadata by ID. No authentication required.
+
+### AppStoreSearch
+
+```python
+from app_reviews import AppStoreSearch, Country
+```
+
+```python
+client = AppStoreSearch(
+    proxy=None,      # str | None -- HTTP proxy URL
+    retry=None,      # RetryConfig | None -- retry settings
+)
+```
+
+#### search()
+
+```python
+results = client.search(
+    "fitness tracker",       # str -- search query
+    country=Country.US,      # Country -- store region (default: US)
+    limit=50,                # int -- max results (default: 50)
+)
+# returns list[AppMetadata]
+```
+
+#### lookup()
+
+```python
+app = client.lookup(
+    "com.whatsapp.WhatsApp", # str -- bundle ID
+    country=Country.US,      # Country -- store region (default: US)
+)
+# returns AppMetadata | None
+```
+
+### GooglePlaySearch
+
+```python
+from app_reviews import GooglePlaySearch, Country
+```
+
+```python
+client = GooglePlaySearch(
+    proxy=None,      # str | None -- HTTP proxy URL
+    retry=None,      # RetryConfig | None -- retry settings
+)
+```
+
+Same `search()` and `lookup()` methods as `AppStoreSearch`. For lookup, pass a package name (e.g. `"com.whatsapp"`).
+
+### AppMetadata
+
+Both `search()` and `lookup()` return `AppMetadata` -- a frozen dataclass with these fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `app_id` | `str` | Bundle ID (App Store) or package name (Google Play) |
+| `store` | `Store` | `"appstore"` or `"googleplay"` |
+| `name` | `str` | App display name |
+| `developer` | `str` | Developer or publisher name |
+| `category` | `str` | Primary category (e.g. `"Social Networking"`) |
+| `price` | `str` | Formatted price (e.g. `"Free"`, `"$4.99"`) |
+| `version` | `str` | Current version string |
+| `rating` | `float` | Average star rating (`0.0` -- `5.0`) |
+| `rating_count` | `int` | Total number of ratings |
+| `url` | `str` | Store page URL |
+| `icon_url` | `str \| None` | App icon image URL |
+
+> **Note:** Google Play search results may have `"Unknown"` for `category`, `price`, `version` and `0` for `rating_count` since these aren't available from the search endpoint. Use `lookup()` for full metadata.
+
+### Examples
+
+```python
+from app_reviews import AppStoreSearch, GooglePlaySearch, Country
+
+# Search App Store
+results = AppStoreSearch().search("weather", country=Country.GB, limit=5)
+for app in results:
+    print(f"{app.name} by {app.developer} ({app.rating}*)")
+
+# Search Google Play
+results = GooglePlaySearch().search("weather", country=Country.US, limit=5)
+for app in results:
+    print(f"{app.name} -- {app.icon_url}")
+
+# Look up a specific app, then fetch its reviews
+from app_reviews import GooglePlayReviews
+app = GooglePlaySearch().lookup("com.whatsapp")
+if app:
+    reviews = GooglePlayReviews().fetch(app.app_id, countries=[Country.US])
+    print(f"{app.name}: {len(reviews)} reviews")
+```
+
+---
+
+## Legacy Metadata Lookup
+
+The `lookup_metadata` utility is still available for quick lookups:
 
 ```python
 from app_reviews.utils.metadata import lookup_metadata
 
 metadata = lookup_metadata("123456789")  # auto-detects store
-
-metadata.name          # app name
-metadata.developer     # developer name
-metadata.category      # primary category
-metadata.price         # "Free" or "$4.99"
-metadata.version       # current version
-metadata.rating        # average star rating
-metadata.rating_count  # total ratings
-metadata.url           # store page URL
-```
-
-Specify store explicitly:
-
-```python
 metadata = lookup_metadata("com.example.app", store="googleplay")
 ```
+
+For new code, prefer `AppStoreSearch.lookup()` and `GooglePlaySearch.lookup()` which return richer data including `icon_url`.

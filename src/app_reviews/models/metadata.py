@@ -21,3 +21,4 @@ class AppMetadata:
     rating: float
     rating_count: int
     url: str
+    icon_url: str | None = None

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app_reviews.auth.appstore.connect import ConnectAuth
-from app_reviews.clients.base import BaseReviews
+from app_reviews.clients.base_reviews import BaseReviews
 from app_reviews.models.auth import AppStoreAuth, ConnectCredentials
 from app_reviews.models.retry import RetryConfig
 from app_reviews.providers.appstore.official import ConnectProvider

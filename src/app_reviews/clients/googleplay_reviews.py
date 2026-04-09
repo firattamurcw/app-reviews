@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app_reviews.auth.googleplay.service_account import GoogleAuth
-from app_reviews.clients.base import BaseReviews
+from app_reviews.clients.base_reviews import BaseReviews
 from app_reviews.models.auth import GooglePlayAuth
 from app_reviews.models.retry import RetryConfig
 from app_reviews.providers.base import ReviewProvider

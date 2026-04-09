@@ -2,7 +2,7 @@
 
 # App Reviews
 
-**Fetch app reviews from the Apple App Store and Google Play Store with a single Python package.**
+**Fetch reviews, search apps, and look up metadata from the Apple App Store and Google Play Store.**
 
 [![PyPI](https://img.shields.io/pypi/v/app-reviews.svg)](https://pypi.org/project/app-reviews)
 [![Python](https://img.shields.io/pypi/pyversions/app-reviews.svg)](https://pypi.org/project/app-reviews)
@@ -20,18 +20,19 @@
 
 ## Why App Reviews?
 
-Apple and Google use completely different APIs, formats, and auth methods. Getting reviews across multiple countries means juggling separate requests, rate limits, and JWT signing.
-
-**App Reviews** handles all of this behind a single `client.fetch()` call -- no API keys required.
+Apple and Google use completely different APIs, formats, and auth methods. **App Reviews** handles all of this behind a simple Python API -- no API keys required.
 
 ```python
-from app_reviews import AppStoreReviews, Country
+from app_reviews import AppStoreSearch, GooglePlayReviews, Country
 
-client = AppStoreReviews()
-result = client.fetch("324684580", countries=[Country.US, Country.GB])
+# Search for apps
+results = AppStoreSearch().search("whatsapp", country=Country.US, limit=5)
+print(results[0].name, results[0].icon_url)
 
-for review in result:
-    print(f"[{review.country}] {review.rating}* {review.title}")
+# Fetch reviews
+reviews = GooglePlayReviews().fetch("com.whatsapp", countries=[Country.US])
+for review in reviews:
+    print(f"{review.rating}* {review.body[:80]}")
 ```
 
 ### Highlights
@@ -39,6 +40,7 @@ for review in result:
 | | |
 |---|---|
 | **Both stores** | Apple App Store + Google Play in one package |
+| **Search & lookup** | Find apps by keyword, look up metadata by ID |
 | **No API keys** | Works out of the box using public endpoints |
 | **155 countries** | Fetch across regions in a single call |
 | **Official APIs** | Optionally use App Store Connect or Google Play Developer API |
@@ -82,11 +84,86 @@ for review in result:
 from app_reviews import GooglePlayReviews, Country
 
 client = GooglePlayReviews()
-result = client.fetch("com.instagram.android", countries=[Country.US])
+result: FetchResult = client.fetch("com.instagram.android", countries=[Country.US])
 
 for review in result:
     print(f"[{review.country}] {review.rating}* {review.body[:80]}")
 ```
+
+### Review
+
+`fetch()` returns a `FetchResult` containing `Review` objects:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `str` | Unique review identifier |
+| `store` | `Store` | `"appstore"` or `"googleplay"` |
+| `app_id` | `str` | App Store ID or package name |
+| `country` | `str` | Two-letter country code |
+| `rating` | `int` | Star rating (1 -- 5) |
+| `title` | `str` | Review title (may be empty for Google Play) |
+| `body` | `str` | Review text |
+| `author_name` | `str` | Reviewer display name |
+| `app_version` | `str \| None` | App version at time of review |
+| `created_at` | `datetime` | When the review was posted |
+| `updated_at` | `datetime \| None` | When the review was last edited |
+| `is_edited` | `bool` | Whether the review was edited |
+| `source` | `Source` | Provider (e.g. `"appstore_scraper"`, `"googleplay_official"`) |
+| `language` | `str \| None` | Review language code |
+| `fetched_at` | `datetime \| None` | When the review was fetched |
+
+---
+
+## Search & Lookup
+
+Find apps by keyword and look up app metadata -- no authentication required.
+
+### Search
+
+```python
+from app_reviews import AppStoreSearch, GooglePlaySearch, Country, AppMetadata
+
+# App Store -- returns list[AppMetadata]
+results: list[AppMetadata] = AppStoreSearch().search("fitness tracker", country=Country.US, limit=10)
+for app in results:
+    print(f"{app.name} by {app.developer} ({app.rating}*)")
+
+# Google Play -- returns list[AppMetadata]
+results: list[AppMetadata] = GooglePlaySearch().search("fitness tracker", country=Country.US, limit=10)
+for app in results:
+    print(f"{app.name} by {app.developer}")
+```
+
+### Lookup
+
+```python
+# Look up by bundle ID (App Store) or package name (Google Play)
+# Returns AppMetadata | None
+app = AppStoreSearch().lookup("com.burbn.instagram")
+if app:
+    print(f"{app.name} - {app.icon_url}")
+
+app = GooglePlaySearch().lookup("com.whatsapp")
+if app:
+    print(f"{app.name} - {app.rating}*")
+```
+
+### AppMetadata
+
+Both `search()` and `lookup()` return `AppMetadata` objects:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `app_id` | `str` | Bundle ID (App Store) or package name (Google Play) |
+| `name` | `str` | App display name |
+| `developer` | `str` | Developer or publisher name |
+| `category` | `str` | Primary category (e.g. "Social Networking") |
+| `price` | `str` | Formatted price (e.g. "Free", "$4.99") |
+| `version` | `str` | Current version string |
+| `rating` | `float` | Average star rating (0.0 -- 5.0) |
+| `rating_count` | `int` | Total number of ratings |
+| `url` | `str` | Store page URL |
+| `icon_url` | `str \| None` | App icon image URL |
 
 ---
 
@@ -201,6 +278,12 @@ make test
 ```
 
 See the [Contributing Guide](https://firattamurcw.github.io/app-reviews/contributing/) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security Policy](SECURITY.md)
+
+---
+
+## Acknowledgements
+
+The Google Play scraping logic (parsing `AF_initDataCallback` datasets, field index paths) is based on the work done in [google-play-scraper](https://github.com/JoMingyu/google-play-scraper) by JoMingyu. We re-implemented it on top of our own HTTP layer to support retries and proxies, but the data-structure knowledge originates from that project.
 
 ---
 

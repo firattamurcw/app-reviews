@@ -10,8 +10,8 @@ from textual.containers import Center, Vertical
 from textual.screen import Screen
 from textual.widgets import Footer, Header, Label, LoadingIndicator
 
-from app_reviews.clients.appstore import AppStoreReviews
-from app_reviews.clients.googleplay import GooglePlayReviews
+from app_reviews.clients.appstore_reviews import AppStoreReviews
+from app_reviews.clients.googleplay_reviews import GooglePlayReviews
 from app_reviews.models.metadata import AppMetadata
 from app_reviews.models.result import FetchResult
 from app_reviews.utils.metadata import lookup_metadata
