@@ -2,7 +2,7 @@ name: Scheduled E2E Test
 
 on:
   schedule:
-    - cron: "0 8 * * *" # Daily at 08:00 UTC
+    - cron: "0 12 * * *" # Daily at 12:00 UTC
   workflow_dispatch: # Allow manual trigger
 
 permissions:
@@ -24,15 +24,24 @@ jobs:
       - name: Install dependencies
         run: uv sync --group dev
 
-      - name: Run live E2E tests
-        id: e2e
+      - name: Run review E2E tests
+        id: e2e_reviews
+        continue-on-error: true
         run: |
           set +e
-          uv run python -m pytest tests/app_reviews/e2e/test_live.py -m live -v -s --tb=long 2>&1 | tee e2e_output.txt
+          uv run python -m pytest tests/app_reviews/e2e/test_live.py -m live -v -s --tb=long 2>&1 | tee e2e_reviews_output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Run search E2E tests
+        id: e2e_search
+        continue-on-error: true
+        run: |
+          set +e
+          uv run python -m pytest tests/app_reviews/e2e/test_search_live.py -m live -v -s --tb=long 2>&1 | tee e2e_search_output.txt
           echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
       - name: Create issue on failure
-        if: steps.e2e.outputs.exit_code != '0'
+        if: steps.e2e_reviews.outputs.exit_code != '0' || steps.e2e_search.outputs.exit_code != '0'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -41,7 +50,14 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           TITLE="E2E Test Failure - $(date -u +'%Y-%m-%d %H:%M UTC')"
-          OUTPUT=$(tail -40 e2e_output.txt)
+
+          REVIEWS_STATUS="passed"
+          SEARCH_STATUS="passed"
+          if [ "${{ steps.e2e_reviews.outputs.exit_code }}" != "0" ]; then REVIEWS_STATUS="failed"; fi
+          if [ "${{ steps.e2e_search.outputs.exit_code }}" != "0" ]; then SEARCH_STATUS="failed"; fi
+
+          REVIEWS_OUTPUT=$(tail -40 e2e_reviews_output.txt)
+          SEARCH_OUTPUT=$(tail -40 e2e_search_output.txt)
 
           cat > issue_body.md << ENDOFBODY
           ## Scheduled E2E Test Failed
@@ -50,10 +66,21 @@ jobs:
           **Branch:** \`${REF_NAME}\`
           **Triggered by:** \`${EVENT_NAME}\`
 
-          ### Test Output
+          | Suite | Status |
+          |-------|--------|
+          | Reviews | ${REVIEWS_STATUS} |
+          | Search | ${SEARCH_STATUS} |
+
+          ### Reviews Test Output
 
           \`\`\`
-          ${OUTPUT}
+          ${REVIEWS_OUTPUT}
+          \`\`\`
+
+          ### Search Test Output
+
+          \`\`\`
+          ${SEARCH_OUTPUT}
           \`\`\`
 
           > This issue was auto-created by the [Scheduled E2E Test](${WORKFLOW_URL}) workflow.
@@ -62,5 +89,5 @@ jobs:
           gh issue create --title "$TITLE" --body-file issue_body.md --label "bug,e2e"
 
       - name: Fail the workflow
-        if: steps.e2e.outputs.exit_code != '0'
+        if: steps.e2e_reviews.outputs.exit_code != '0' || steps.e2e_search.outputs.exit_code != '0'
         run: exit 1

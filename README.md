@@ -10,6 +10,7 @@
 [![License](https://img.shields.io/github/license/firattamurcw/app-reviews)](LICENSE)
 
 [![CI](https://github.com/firattamurcw/app-reviews/actions/workflows/ci.yml/badge.svg)](https://github.com/firattamurcw/app-reviews/actions/workflows/ci.yml)
+[![E2E](https://github.com/firattamurcw/app-reviews/actions/workflows/scheduled_e2e_test.yml/badge.svg)](https://github.com/firattamurcw/app-reviews/actions/workflows/scheduled_e2e_test.yml)
 [![Docs](https://github.com/firattamurcw/app-reviews/actions/workflows/docs.yml/badge.svg)](https://firattamurcw.github.io/app-reviews/)
 
 [Documentation](https://firattamurcw.github.io/app-reviews/) · [PyPI](https://pypi.org/project/app-reviews/) · [Contributing](https://firattamurcw.github.io/app-reviews/contributing/)
