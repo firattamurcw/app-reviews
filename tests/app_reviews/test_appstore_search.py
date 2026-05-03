@@ -92,7 +92,7 @@ class TestAppStoreSearchSearch:
         mock_get.return_value = HttpResponse(status=200, body=_SEARCH_RESPONSE)
         results = AppStoreSearch().search("whatsapp")
         app = results[0]
-        assert app.app_id == "com.whatsapp.WhatsApp"
+        assert app.app_id == "310633997"
         assert app.store == "appstore"
         assert app.name == "WhatsApp Messenger"
         assert app.developer == "WhatsApp Inc."
@@ -150,7 +150,16 @@ class TestAppStoreSearchLookup:
         call_kwargs = mock_get.call_args
         params = call_kwargs.kwargs.get("params") or call_kwargs[1].get("params")
         assert params["bundleId"] == "com.whatsapp.WhatsApp"
+        assert "id" not in params
         assert params["country"] == "jp"
+
+    @patch("app_reviews.clients.search.appstore.http_get")
+    def test_numeric_app_id_uses_id_param(self, mock_get):
+        mock_get.return_value = HttpResponse(status=200, body=_LOOKUP_RESPONSE)
+        AppStoreSearch().lookup("310633997")
+        params = mock_get.call_args.kwargs["params"]
+        assert params["id"] == "310633997"
+        assert "bundleId" not in params
 
     @patch("app_reviews.clients.search.appstore.http_get")
     def test_http_error_raises(self, mock_get):

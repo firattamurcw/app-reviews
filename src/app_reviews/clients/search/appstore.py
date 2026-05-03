@@ -19,9 +19,13 @@ _ITUNES_LOOKUP_URL = "https://itunes.apple.com/lookup"
 
 
 def _to_app_metadata(result: dict[str, Any]) -> AppMetadata:
-    """Map an iTunes API result dict to AppMetadata."""
+    """Map an iTunes API result dict to AppMetadata.
+
+    ``app_id`` is the numeric ``trackId`` because the review fetch APIs
+    (RSS scraper, Connect API) key off the track id, not the bundle id.
+    """
     return AppMetadata(
-        app_id=result.get("bundleId", str(result.get("trackId", ""))),
+        app_id=str(result.get("trackId", result.get("bundleId", ""))),
         store="appstore",
         name=result.get("trackName", "Unknown"),
         developer=result.get("artistName", "Unknown"),
@@ -76,10 +80,18 @@ class AppStoreSearch(BaseSearch):
         *,
         country: Country = Country.US,
     ) -> AppMetadata | None:
+        """Look up an app by numeric trackId or reverse-DNS bundleId.
+
+        iTunes Lookup accepts ``id=<trackId>`` for numeric ids and
+        ``bundleId=<reverse-DNS>`` otherwise. Pick the param that matches
+        the input shape so callers can chain ``search() → lookup()`` with
+        whichever id ``search()`` returns.
+        """
+        id_param = "id" if app_id.isdigit() else "bundleId"
         resp = http_get(
             _ITUNES_LOOKUP_URL,
             params={
-                "bundleId": app_id,
+                id_param: app_id,
                 "country": str(country),
             },
             timeout=self._retry.timeout,
