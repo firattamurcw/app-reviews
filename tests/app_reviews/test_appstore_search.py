@@ -92,7 +92,7 @@ class TestAppStoreSearchSearch:
         mock_get.return_value = HttpResponse(status=200, body=_SEARCH_RESPONSE)
         results = AppStoreSearch().search("whatsapp")
         app = results[0]
-        assert app.app_id == "com.whatsapp.WhatsApp"
+        assert app.app_id == "310633997"
         assert app.store == "appstore"
         assert app.name == "WhatsApp Messenger"
         assert app.developer == "WhatsApp Inc."

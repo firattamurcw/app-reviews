@@ -19,9 +19,13 @@ _ITUNES_LOOKUP_URL = "https://itunes.apple.com/lookup"
 
 
 def _to_app_metadata(result: dict[str, Any]) -> AppMetadata:
-    """Map an iTunes API result dict to AppMetadata."""
+    """Map an iTunes API result dict to AppMetadata.
+
+    ``app_id`` is the numeric ``trackId`` because the review fetch APIs
+    (RSS scraper, Connect API) key off the track id, not the bundle id.
+    """
     return AppMetadata(
-        app_id=result.get("bundleId", str(result.get("trackId", ""))),
+        app_id=str(result.get("trackId", result.get("bundleId", ""))),
         store="appstore",
         name=result.get("trackName", "Unknown"),
         developer=result.get("artistName", "Unknown"),
