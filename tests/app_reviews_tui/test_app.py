@@ -42,7 +42,7 @@ class TestReviewApp:
 
     @pytest.mark.asyncio
     @patch("app_reviews_tui.screens.fetching.lookup_metadata", return_value=None)
-    @patch("app_reviews.clients.appstore_reviews.AppStoreReviews.fetch")
+    @patch("app_reviews.clients.reviews.appstore.AppStoreReviews.fetch")
     async def test_app_skips_country_select_when_countries_provided(
         self, mock_fetch: MagicMock, mock_lookup: MagicMock
     ) -> None:

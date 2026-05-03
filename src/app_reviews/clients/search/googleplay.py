@@ -7,7 +7,7 @@ import logging
 import re
 from typing import Any
 
-from app_reviews.clients.base_search import BaseSearch
+from app_reviews.clients.search.base import BaseSearch
 from app_reviews.errors import HttpError
 from app_reviews.models.country import Country
 from app_reviews.models.metadata import AppMetadata

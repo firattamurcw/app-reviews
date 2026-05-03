@@ -2,7 +2,7 @@
 
 import pytest
 
-from app_reviews.clients.base_search import BaseSearch
+from app_reviews.clients.search.base import BaseSearch
 from app_reviews.models.country import Country
 from app_reviews.models.retry import RetryConfig
 
