@@ -80,10 +80,18 @@ class AppStoreSearch(BaseSearch):
         *,
         country: Country = Country.US,
     ) -> AppMetadata | None:
+        """Look up an app by numeric trackId or reverse-DNS bundleId.
+
+        iTunes Lookup accepts ``id=<trackId>`` for numeric ids and
+        ``bundleId=<reverse-DNS>`` otherwise. Pick the param that matches
+        the input shape so callers can chain ``search() → lookup()`` with
+        whichever id ``search()`` returns.
+        """
+        id_param = "id" if app_id.isdigit() else "bundleId"
         resp = http_get(
             _ITUNES_LOOKUP_URL,
             params={
-                "bundleId": app_id,
+                id_param: app_id,
                 "country": str(country),
             },
             timeout=self._retry.timeout,
