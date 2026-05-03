@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app_reviews.clients.appstore_search import AppStoreSearch
+from app_reviews.clients.search.appstore import AppStoreSearch
 from app_reviews.errors import HttpError
 from app_reviews.models.country import Country
 from app_reviews.models.metadata import AppMetadata
@@ -80,14 +80,14 @@ class TestAppStoreSearchConstruction:
 
 
 class TestAppStoreSearchSearch:
-    @patch("app_reviews.clients.appstore_search.http_get")
+    @patch("app_reviews.clients.search.appstore.http_get")
     def test_returns_list_of_app_metadata(self, mock_get):
         mock_get.return_value = HttpResponse(status=200, body=_SEARCH_RESPONSE)
         results = AppStoreSearch().search("whatsapp")
         assert len(results) == 2
         assert all(isinstance(r, AppMetadata) for r in results)
 
-    @patch("app_reviews.clients.appstore_search.http_get")
+    @patch("app_reviews.clients.search.appstore.http_get")
     def test_maps_fields_correctly(self, mock_get):
         mock_get.return_value = HttpResponse(status=200, body=_SEARCH_RESPONSE)
         results = AppStoreSearch().search("whatsapp")
@@ -103,7 +103,7 @@ class TestAppStoreSearchSearch:
         assert app.rating_count == 5000000
         assert app.icon_url == "https://is1-ssl.mzstatic.com/image/512x512.jpg"
 
-    @patch("app_reviews.clients.appstore_search.http_get")
+    @patch("app_reviews.clients.search.appstore.http_get")
     def test_passes_query_params(self, mock_get):
         mock_get.return_value = HttpResponse(status=200, body=_EMPTY_RESPONSE)
         AppStoreSearch().search("test", country=Country.GB, limit=10)
@@ -115,13 +115,13 @@ class TestAppStoreSearchSearch:
         assert params["limit"] == "10"
         assert params["entity"] == "software"
 
-    @patch("app_reviews.clients.appstore_search.http_get")
+    @patch("app_reviews.clients.search.appstore.http_get")
     def test_empty_results_returns_empty_list(self, mock_get):
         mock_get.return_value = HttpResponse(status=200, body=_EMPTY_RESPONSE)
         results = AppStoreSearch().search("xyznonexistent")
         assert results == []
 
-    @patch("app_reviews.clients.appstore_search.http_get")
+    @patch("app_reviews.clients.search.appstore.http_get")
     def test_http_error_raises(self, mock_get):
         mock_get.return_value = HttpResponse(status=503, body="error")
         with pytest.raises(HttpError):
@@ -129,7 +129,7 @@ class TestAppStoreSearchSearch:
 
 
 class TestAppStoreSearchLookup:
-    @patch("app_reviews.clients.appstore_search.http_get")
+    @patch("app_reviews.clients.search.appstore.http_get")
     def test_returns_app_metadata(self, mock_get):
         mock_get.return_value = HttpResponse(status=200, body=_LOOKUP_RESPONSE)
         result = AppStoreSearch().lookup("com.whatsapp.WhatsApp")
@@ -137,13 +137,13 @@ class TestAppStoreSearchLookup:
         assert result.name == "WhatsApp Messenger"
         assert result.icon_url == "https://is1-ssl.mzstatic.com/image/512x512.jpg"
 
-    @patch("app_reviews.clients.appstore_search.http_get")
+    @patch("app_reviews.clients.search.appstore.http_get")
     def test_not_found_returns_none(self, mock_get):
         mock_get.return_value = HttpResponse(status=200, body=_EMPTY_RESPONSE)
         result = AppStoreSearch().lookup("com.nonexistent.app")
         assert result is None
 
-    @patch("app_reviews.clients.appstore_search.http_get")
+    @patch("app_reviews.clients.search.appstore.http_get")
     def test_passes_bundle_id_param(self, mock_get):
         mock_get.return_value = HttpResponse(status=200, body=_LOOKUP_RESPONSE)
         AppStoreSearch().lookup("com.whatsapp.WhatsApp", country=Country.JP)
@@ -152,7 +152,7 @@ class TestAppStoreSearchLookup:
         assert params["bundleId"] == "com.whatsapp.WhatsApp"
         assert params["country"] == "jp"
 
-    @patch("app_reviews.clients.appstore_search.http_get")
+    @patch("app_reviews.clients.search.appstore.http_get")
     def test_http_error_raises(self, mock_get):
         mock_get.return_value = HttpResponse(status=500, body="error")
         with pytest.raises(HttpError):

@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app_reviews.clients.googleplay_search import (
+from app_reviews.clients.search.googleplay import (
     GooglePlaySearch,
     _extract_datasets,
     _parse_detail_html,
@@ -218,14 +218,14 @@ class TestParseDetailHtml:
 
 
 class TestGooglePlaySearchSearch:
-    @patch("app_reviews.clients.googleplay_search.http_get")
+    @patch("app_reviews.clients.search.googleplay.http_get")
     def test_returns_list_of_app_metadata(self, mock_get):  # type: ignore[no-untyped-def]
         mock_get.return_value = HttpResponse(status=200, body=_SEARCH_HTML)
         results = GooglePlaySearch().search("whatsapp")
         assert len(results) == 2
         assert all(isinstance(r, AppMetadata) for r in results)
 
-    @patch("app_reviews.clients.googleplay_search.http_get")
+    @patch("app_reviews.clients.search.googleplay.http_get")
     def test_maps_fields_correctly(self, mock_get):  # type: ignore[no-untyped-def]
         mock_get.return_value = HttpResponse(status=200, body=_SEARCH_HTML)
         results = GooglePlaySearch().search("whatsapp")
@@ -240,19 +240,19 @@ class TestGooglePlaySearchSearch:
         assert app.icon_url == "https://play-lh.googleusercontent.com/icon1.png"
         assert app.url == "https://play.google.com/store/apps/details?id=com.whatsapp"
 
-    @patch("app_reviews.clients.googleplay_search.http_get")
+    @patch("app_reviews.clients.search.googleplay.http_get")
     def test_empty_results_returns_empty_list(self, mock_get):  # type: ignore[no-untyped-def]
         mock_get.return_value = HttpResponse(status=200, body=_SEARCH_EMPTY_HTML)
         results = GooglePlaySearch().search("xyznonexistent")
         assert results == []
 
-    @patch("app_reviews.clients.googleplay_search.http_get")
+    @patch("app_reviews.clients.search.googleplay.http_get")
     def test_http_error_raises(self, mock_get):  # type: ignore[no-untyped-def]
         mock_get.return_value = HttpResponse(status=503, body="error")
         with pytest.raises(HttpError):
             GooglePlaySearch().search("whatsapp")
 
-    @patch("app_reviews.clients.googleplay_search.http_get")
+    @patch("app_reviews.clients.search.googleplay.http_get")
     def test_limit_is_applied(self, mock_get):  # type: ignore[no-untyped-def]
         mock_get.return_value = HttpResponse(status=200, body=_SEARCH_HTML)
         results = GooglePlaySearch().search("whatsapp", limit=1)
@@ -260,7 +260,7 @@ class TestGooglePlaySearchSearch:
 
 
 class TestGooglePlaySearchLookup:
-    @patch("app_reviews.clients.googleplay_search.http_get")
+    @patch("app_reviews.clients.search.googleplay.http_get")
     def test_returns_app_metadata(self, mock_get):  # type: ignore[no-untyped-def]
         mock_get.return_value = HttpResponse(status=200, body=_LOOKUP_HTML)
         result = GooglePlaySearch().lookup("com.whatsapp")
@@ -276,13 +276,13 @@ class TestGooglePlaySearchLookup:
         assert result.store == "googleplay"
         assert result.icon_url == "https://play-lh.googleusercontent.com/icon1.png"
 
-    @patch("app_reviews.clients.googleplay_search.http_get")
+    @patch("app_reviews.clients.search.googleplay.http_get")
     def test_not_found_returns_none(self, mock_get):  # type: ignore[no-untyped-def]
         mock_get.return_value = HttpResponse(status=404, body="Not Found")
         result = GooglePlaySearch().lookup("com.nonexistent.app")
         assert result is None
 
-    @patch("app_reviews.clients.googleplay_search.http_get")
+    @patch("app_reviews.clients.search.googleplay.http_get")
     def test_http_error_raises(self, mock_get):  # type: ignore[no-untyped-def]
         mock_get.return_value = HttpResponse(status=503, body="error")
         with pytest.raises(HttpError):

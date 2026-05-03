@@ -5,8 +5,8 @@ Run with: uv run python -m pytest -m live tests/app_reviews/e2e/test_search_live
 
 import pytest
 
-from app_reviews.clients.appstore_search import AppStoreSearch
-from app_reviews.clients.googleplay_search import GooglePlaySearch
+from app_reviews.clients.search.appstore import AppStoreSearch
+from app_reviews.clients.search.googleplay import GooglePlaySearch
 from app_reviews.models.metadata import AppMetadata
 
 
