@@ -20,22 +20,6 @@ uv add app-reviews
 
 ---
 
-## Install with the TUI
-
-The interactive terminal UI requires the [Textual](https://textual.textualize.io/) library:
-
-```bash
-pip install app-reviews[tui]
-```
-
-Or with uv:
-
-```bash
-uv add "app-reviews[tui]"
-```
-
----
-
 ## Install from Source
 
 ```bash
@@ -67,11 +51,5 @@ One runtime dependency:
 | Package | Purpose |
 |---------|---------|
 | `cryptography` | JWT signing for authenticated API access |
-
-The TUI extra adds:
-
-| Package | Purpose |
-|---------|---------|
-| `textual` | Powers the interactive terminal UI |
 
 All HTTP requests use Python's built-in `urllib`.

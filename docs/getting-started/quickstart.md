@@ -92,18 +92,6 @@ for review in bad_recent:
 
 ---
 
-## Launch the Interactive TUI
-
-If you installed with `pip install app-reviews[tui]`:
-
-```bash
-app-reviews
-```
-
-This launches an interactive terminal UI that walks you through selecting an app, countries, and browsing results.
-
----
-
 ## Understanding the Result
 
 Every `client.fetch()` call returns a `FetchResult`. It is iterable and supports `len()` and `bool()`.
@@ -137,6 +125,5 @@ A fetch can partially succeed. If 3 out of 5 countries succeed, you get reviews 
 ## Next Steps
 
 - [Python API](../guide/python-api.md) -- all parameters and options
-- [Interactive TUI](../guide/tui.md) -- terminal UI walkthrough
 - [Authentication](../guide/authentication.md) -- set up authenticated APIs
 - [Export Formats](../guide/export.md) -- JSON, JSONL, CSV export

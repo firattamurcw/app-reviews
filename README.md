@@ -45,7 +45,6 @@ for review in reviews:
 | **No API keys** | Works out of the box using public endpoints |
 | **155 countries** | Fetch across regions in a single call |
 | **Official APIs** | Optionally use App Store Connect or Google Play Developer API |
-| **Interactive TUI** | Browse reviews in the terminal |
 | **Export** | JSON, JSONL, CSV |
 | **Minimal deps** | Just `cryptography` for JWT + stdlib `urllib` |
 
@@ -238,15 +237,6 @@ export_csv(result.reviews)    # CSV string with headers
 export_jsonl(result.reviews)  # one JSON object per line
 ```
 
-<summary><b>Interactive TUI</b></summary>
-
-Browse reviews in the terminal with the built-in TUI:
-
-```bash
-pip install app-reviews[tui]
-app-reviews
-```
-
 ---
 
 ## Limitations
@@ -265,7 +255,7 @@ app-reviews
 
 ## Documentation
 
-**[Read the full docs](https://firattamurcw.github.io/app-reviews/)** includes guides on the Python API, TUI, authentication, export formats, and architecture.
+**[Read the full docs](https://firattamurcw.github.io/app-reviews/)** includes guides on the Python API, authentication, export formats, and architecture.
 
 ---
 
