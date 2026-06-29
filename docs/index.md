@@ -87,5 +87,4 @@ For details, see [How It Works](reference/how-it-works.md).
 - [Installation](getting-started/installation.md) -- install the package
 - [Quick Start](getting-started/quickstart.md) -- get your first reviews in 2 minutes
 - [Python API](guide/python-api.md) -- full API reference
-- [Interactive TUI](guide/tui.md) -- browse reviews in your terminal
 - [How It Works](reference/how-it-works.md) -- what happens under the hood

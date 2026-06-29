@@ -85,13 +85,6 @@ src/app_reviews/
     ├── parsing.py          # Input parsing and store detection
     ├── retry.py            # Retry logic
     └── text.py             # Text cleaning
-
-src/app_reviews_tui/        # Interactive terminal UI (separate package)
-├── __init__.py
-├── app.py
-├── sorting.py
-├── screens/
-└── widgets/
 ```
 
 ---

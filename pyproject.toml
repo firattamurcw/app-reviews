@@ -27,19 +27,13 @@ dependencies = [
     "cryptography==49.0.0",
 ]
 
-[project.optional-dependencies]
-tui = ["textual==8.2.7"]
-
-[project.scripts]
-app-reviews = "app_reviews_tui:main"
-
 [project.urls]
 Homepage = "https://github.com/firattamurcw/app-reviews"
 Repository = "https://github.com/firattamurcw/app-reviews"
 Issues = "https://github.com/firattamurcw/app-reviews/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/app_reviews", "src/app_reviews_tui"]
+packages = ["src/app_reviews"]
 
 [dependency-groups]
 dev = [
@@ -50,7 +44,6 @@ dev = [
     "pandas-stubs>=2.0",
     "ruff==0.15.19",
     "pre-commit==4.6.0",
-    "textual==8.2.7",
     "mkdocs-material>=9.6",
 ]
 
@@ -62,7 +55,7 @@ line-length = 88
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app_reviews", "app_reviews_tui"]
+known-first-party = ["app_reviews"]
 
 [tool.mypy]
 strict = true
@@ -74,7 +67,7 @@ markers = ["live: live E2E tests that hit real store endpoints (skipped by defau
 addopts = "-m 'not live'"
 
 [tool.coverage.run]
-source = ["app_reviews", "app_reviews_tui"]
+source = ["app_reviews"]
 branch = true
 
 [tool.coverage.report]

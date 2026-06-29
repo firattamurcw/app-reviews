@@ -47,7 +47,6 @@ nav:
       - Quick Start: getting-started/quickstart.md
   - Guide:
       - Python API: guide/python-api.md
-      - Interactive TUI: guide/tui.md
       - Authentication: guide/authentication.md
       - Export Formats: guide/export.md
   - Reference:
