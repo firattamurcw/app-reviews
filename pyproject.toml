@@ -42,7 +42,7 @@ dev = [
     "pytest-asyncio==1.4.0",
     "mypy==2.1.0",
     "pandas-stubs>=2.0",
-    "ruff==0.15.19",
+    "ruff==0.15.20",
     "pre-commit==4.6.0",
     "mkdocs-material>=9.6",
 ]
