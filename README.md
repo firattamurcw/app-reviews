@@ -13,7 +13,7 @@
 [![E2E](https://github.com/firattamurcw/app-reviews/actions/workflows/scheduled_e2e_test.yml/badge.svg)](https://github.com/firattamurcw/app-reviews/actions/workflows/scheduled_e2e_test.yml)
 [![Docs](https://github.com/firattamurcw/app-reviews/actions/workflows/docs.yml/badge.svg)](https://firattamurcw.github.io/app-reviews/)
 
-[Documentation](https://firattamurcw.github.io/app-reviews/) · [PyPI](https://pypi.org/project/app-reviews/) · [Contributing](https://firattamurcw.github.io/app-reviews/contributing/)
+[Documentation](https://firattamurcw.github.io/app-reviews/) · [PyPI](https://pypi.org/project/app-reviews/) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -268,7 +268,7 @@ uv sync --group dev
 make test
 ```
 
-See the [Contributing Guide](https://firattamurcw.github.io/app-reviews/contributing/) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security Policy](SECURITY.md)
+See [CONTRIBUTING.md](CONTRIBUTING.md) · [Security Policy](SECURITY.md)
 
 ---
 
