@@ -1,6 +1,10 @@
 version: 2
 updates:
-  - package-ecosystem: "pip"
+  # "uv", not "pip": the pip ecosystem edits pyproject.toml without
+  # regenerating uv.lock, which is how ruff came to be pinned at 0.15.19 in
+  # pyproject while the lock still recorded 0.15.17. CI now runs
+  # `uv sync --locked`, so both files have to move together.
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
