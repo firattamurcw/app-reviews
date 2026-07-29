@@ -7,16 +7,21 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.12"
-
-      - run: pip install mkdocs-material
-
-      - run: mkdocs gh-deploy --force
+          version: "latest"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: uv sync --locked --group dev
+      - run: uv run mkdocs build --strict
+      - run: uv run mkdocs gh-deploy --force
