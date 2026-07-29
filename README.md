@@ -114,9 +114,11 @@ for review in result:
 
 #### Review IDs
 
-`id` is the raw identifier assigned by the source, passed through unchanged. It is unique within a `(store, source)` pair, but **not** across sources: the two providers for a store read different identifier spaces, so the same real-world review fetched via `googleplay_scraper` and via `googleplay_official` carries two different ids. Use `source` to tell provenance apart, and key any deduplication on `(store, source, id)`.
+`id` is the raw identifier assigned by the source, passed through unchanged. Treat it as unique within a `(store, source)` pair rather than globally, use `source` to tell provenance apart, and key any deduplication on `(store, source, id)`.
 
-Only ids from an `official` source are accepted by that store's reply API -- Google Play `androidpublisher` `reviews.reply` and App Store Connect `customerReviewResponses`.
+Ids are not necessarily comparable across sources. On the App Store they definitely differ -- RSS ids are numeric while Connect ids are opaque, with no mapping between them -- so the same review fetched via `appstore_scraper` and `appstore_official` carries two different ids. Google Play appears to use a single identifier space for both providers.
+
+For App Store Connect specifically, `customerReviewResponses` requires a Connect `customerReviews.id`. RSS ids are numeric and Connect ids are opaque, with no mapping between them, so an `appstore_scraper` id cannot be used to reply.
 
 ---
 
