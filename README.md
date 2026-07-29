@@ -84,7 +84,7 @@ for review in result:
 from app_reviews import GooglePlayReviews, Country
 
 client = GooglePlayReviews()
-result: FetchResult = client.fetch("com.instagram.android", countries=[Country.US])
+result = client.fetch("com.instagram.android", countries=[Country.US])
 
 for review in result:
     print(f"[{review.country}] {review.rating}* {review.body[:80]}")
