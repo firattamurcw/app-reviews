@@ -134,7 +134,7 @@ def _to_review(entry: list[Any], app_id: str) -> Review | None:
             source="googleplay_scraper",
             raw=None,
             fetched_at=datetime.now(tz=UTC),
-            id=f"googleplay_scraper-{review_id}",
+            id=review_id,
         )
     except (IndexError, TypeError, ValueError):
         _LOG.warning("Failed to parse review entry for app %s: %r", app_id, entry[:3])

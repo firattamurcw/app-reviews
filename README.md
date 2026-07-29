@@ -96,7 +96,7 @@ for review in result:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | `str` | Unique review identifier |
+| `id` | `str` | Raw identifier assigned by the source ([see below](#review-ids)) |
 | `store` | `Store` | `"appstore"` or `"googleplay"` |
 | `app_id` | `str` | App Store ID or package name |
 | `country` | `str` | Two-letter country code |
@@ -111,6 +111,12 @@ for review in result:
 | `source` | `Source` | Provider (e.g. `"appstore_scraper"`, `"googleplay_official"`) |
 | `language` | `str \| None` | Review language code |
 | `fetched_at` | `datetime \| None` | When the review was fetched |
+
+#### Review IDs
+
+`id` is the raw identifier assigned by the source, passed through unchanged. It is unique within a `(store, source)` pair, but **not** across sources: the two providers for a store read different identifier spaces, so the same real-world review fetched via `googleplay_scraper` and via `googleplay_official` carries two different ids. Use `source` to tell provenance apart, and key any deduplication on `(store, source, id)`.
+
+Only ids from an `official` source are accepted by that store's reply API -- Google Play `androidpublisher` `reviews.reply` and App Store Connect `customerReviewResponses`.
 
 ---
 

@@ -18,7 +18,7 @@ def _make_review(id: str = "1") -> Review:
     """A fully-populated review for round-trip testing."""
     return Review(
         store="appstore",
-        id=f"scraper-{id}",
+        id=id,
         app_id="12345",
         country="us",
         language="en",

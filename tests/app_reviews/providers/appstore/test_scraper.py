@@ -84,7 +84,9 @@ class TestRSSProviderFetchPage:
         assert r.body == "It works"
         assert r.author_name == "Bob"
         assert r.source == "appstore_scraper"
-        assert r.id == "appstore_scraper-42"
+        # id is the raw store identifier, with no provider prefix: the store
+        # reply APIs reject a prefixed id. Provenance lives on .source.
+        assert r.id == "42"
 
     @patch("app_reviews.providers.appstore.scraper.http_get")
     def test_non_empty_page_returns_next_cursor(self, mock_get):
