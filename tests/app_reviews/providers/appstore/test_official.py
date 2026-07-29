@@ -92,7 +92,9 @@ class TestConnectProviderFetchPage:
         assert r.country == "GBR"
         assert r.rating == 4
         assert r.source == "appstore_official"
-        assert r.id == "appstore_official-xyz-789"
+        # Raw Connect customerReviews.id, unprefixed, so it can be passed
+        # straight to customerReviewResponses.
+        assert r.id == "xyz-789"
 
     @patch("app_reviews.providers.appstore.official.http_get")
     def test_next_cursor_is_next_url(self, mock_get):

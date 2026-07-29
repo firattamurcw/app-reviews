@@ -73,7 +73,9 @@ class TestGoogleDeveloperApiProviderFetchPage:
         assert r.body == "Works great"
         assert r.author_name == "Bob"
         assert r.source == "googleplay_official"
-        assert r.id == "googleplay_official-rev-001"
+        # Raw androidpublisher reviewId, unprefixed, so it can be passed
+        # straight to reviews.reply.
+        assert r.id == "rev-001"
 
     @patch("app_reviews.providers.googleplay.official.http_get")
     def test_next_cursor_is_page_token(self, mock_get):

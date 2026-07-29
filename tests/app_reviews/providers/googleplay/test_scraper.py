@@ -62,6 +62,8 @@ class TestGoogleScraperProviderReviewParsing:
         assert review.author_name == "TestUser"
         assert review.app_version == "2.1.0"
         assert review.app_id == "com.example"
+        # id is the raw batchexecute review id, with no provider prefix.
+        assert review.id == "review-id-123"
 
     @patch("app_reviews.providers.googleplay.scraper.http_post")
     def test_invalid_entry_is_skipped(self, mock_post):

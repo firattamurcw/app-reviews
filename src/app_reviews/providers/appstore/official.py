@@ -39,7 +39,7 @@ def _map_entry(entry: dict[str, Any], app_id: str) -> Review:
         source="appstore_official",
         raw=entry,
         fetched_at=datetime.now(tz=UTC),
-        id=f"appstore_official-{source_review_id}",
+        id=source_review_id,
     )
 
 

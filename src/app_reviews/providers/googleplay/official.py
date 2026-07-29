@@ -46,7 +46,7 @@ def _map_entry(entry: dict[str, Any], app_id: str) -> Review:
         source="googleplay_official",
         raw=entry,
         fetched_at=datetime.now(tz=UTC),
-        id=f"googleplay_official-{review_id}",
+        id=review_id,
     )
 
 

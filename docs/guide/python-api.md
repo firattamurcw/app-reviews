@@ -210,7 +210,7 @@ records = result.to_dicts()
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | `str` | Unique review identifier |
+| `id` | `str` | Raw identifier assigned by the source ([details](../reference/models.md#review-ids)) |
 | `store` | `Store` | `"appstore"` or `"googleplay"` |
 | `app_id` | `str` | App Store ID or package name |
 | `country` | `str` | Two-letter country code |

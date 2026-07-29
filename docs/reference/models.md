@@ -26,10 +26,25 @@ from app_reviews import Review
 | `app_version` | `str` or `None` | `None` | App version reviewed. |
 | `updated_at` | `datetime` or `None` | `None` | Last edit time. |
 | `language` | `str` or `None` | `None` | Review language. |
-| `id` | `str` | `""` | Unique review identifier. |
+| `id` | `str` | `""` | Raw identifier assigned by the source. See below. |
 | `fetched_at` | `datetime` or `None` | `None` | When the review was fetched. |
 | `is_edited` | `bool` | `False` | Whether the review was edited. |
 | `raw` | `dict` or `None` | `None` | Raw API payload. |
+
+### Review IDs
+
+`id` is the identifier the source assigned, passed through unchanged -- the App Store RSS `id` or Connect `customerReviews.id`, the Google Play `batchexecute` review id or `androidpublisher` `reviewId`.
+
+!!! warning "IDs are not comparable across sources"
+
+    An `id` is unique within a `(store, source)` pair, but not across sources. The two
+    providers for a given store read genuinely different identifier spaces, so the same
+    real-world review fetched via `googleplay_scraper` and via `googleplay_official`
+    carries two different ids.
+
+    Key deduplication on `(store, source, id)`, and use `source` to tell provenance apart.
+
+Only ids from an `official` source are accepted by that store's reply API -- Google Play `androidpublisher` `reviews.reply` and App Store Connect `customerReviewResponses`. A `scraper` id will be rejected.
 
 ---
 
