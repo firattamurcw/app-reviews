@@ -1,17 +1,11 @@
 """Tests for BaseReviews fetch orchestration."""
 
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
 from unittest.mock import MagicMock
-
-from conftest import make_review
 
 from app_reviews.clients.reviews.base import BaseReviews
 from app_reviews.models.result import FetchError
 from app_reviews.providers.base import PageResult
+from tests.app_reviews.factories import make_review
 
 
 def _make_provider(

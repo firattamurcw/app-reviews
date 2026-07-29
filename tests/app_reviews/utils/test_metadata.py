@@ -1,6 +1,7 @@
 """Tests for app metadata lookup utilities."""
 
 import json
+import urllib.error
 from unittest.mock import patch
 
 import pytest
@@ -56,9 +57,12 @@ class TestLookupApple:
         assert result.name == "TestApp"
         assert result.developer == "TestDev"
         assert result.category == "Utilities"
+        assert result.price == "Free"
+        assert result.version == "1.2.3"
         assert result.rating == 4.5
         assert result.rating_count == 1000
         assert result.store == "appstore"
+        assert "12345" in result.url
 
     @patch("app_reviews.utils.metadata.http_get")
     def test_not_found_raises_value_error(self, mock_get):
@@ -74,6 +78,12 @@ class TestLookupApple:
         with pytest.raises(HttpError, match="500"):
             lookup_metadata("12345", store="appstore")
 
+    @patch("app_reviews.utils.metadata.http_get")
+    def test_transport_error_propagates(self, mock_get):
+        mock_get.side_effect = urllib.error.URLError("connection failed")
+        with pytest.raises(urllib.error.URLError):
+            lookup_metadata("12345", store="appstore")
+
 
 class TestLookupGoogle:
     @patch("app_reviews.utils.metadata.http_get")
@@ -86,6 +96,7 @@ class TestLookupGoogle:
         assert result.category == "Tools"
         assert result.rating == 4.2
         assert result.store == "googleplay"
+        assert "com.example.app" in result.url
 
     @patch("app_reviews.utils.metadata.http_get")
     def test_missing_fields_default_to_unknown(self, mock_get):

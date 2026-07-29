@@ -1,14 +1,10 @@
 """Tests for FetchResult."""
 
-import os
-import sys
 from datetime import UTC, date, datetime
 
 from app_reviews.models.result import FetchError, FetchResult
 from app_reviews.models.sort import Sort
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from conftest import make_review
+from tests.app_reviews.factories import make_review
 
 
 def test_fetch_result_default_empty():

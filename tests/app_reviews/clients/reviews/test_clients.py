@@ -1,19 +1,13 @@
 """Tests for AppStoreReviews and GooglePlayReviews client classes."""
 
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-
 from unittest.mock import MagicMock, patch
-
-from conftest import make_review
 
 from app_reviews.clients import AppStoreReviews, GooglePlayReviews
 from app_reviews.models.auth import AppStoreAuth, GooglePlayAuth
 from app_reviews.models.result import FetchError
 from app_reviews.models.retry import RetryConfig
 from app_reviews.providers.base import PageResult
+from tests.app_reviews.factories import make_review
 
 
 def _mock_provider(pages: list[PageResult], countries: list[str] | None = None):
