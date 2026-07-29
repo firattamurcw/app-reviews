@@ -37,6 +37,9 @@ site/
 *.swo
 *~
 
+# macOS
+.DS_Store
+
 # Claude plugins
 .superpowers/
 .claude/

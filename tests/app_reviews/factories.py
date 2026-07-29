@@ -1,4 +1,4 @@
-"""Shared test fixtures for app-reviews."""
+"""Test data factories for app-reviews."""
 
 from datetime import UTC, datetime
 

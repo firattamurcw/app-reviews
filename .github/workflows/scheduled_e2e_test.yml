@@ -6,6 +6,7 @@ on:
   workflow_dispatch: # Allow manual trigger
 
 permissions:
+  contents: read
   issues: write
 
 jobs:
@@ -14,15 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.12"
+          version: "latest"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
 
       - name: Install dependencies
-        run: uv sync --group dev
+        run: uv sync --locked --group dev
 
       - name: Run review E2E tests
         id: e2e_reviews
@@ -40,7 +42,7 @@ jobs:
           uv run python -m pytest tests/app_reviews/e2e/test_search_live.py -m live -v -s --tb=long 2>&1 | tee e2e_search_output.txt
           echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
-      - name: Create issue on failure
+      - name: Report failure
         if: steps.e2e_reviews.outputs.exit_code != '0' || steps.e2e_search.outputs.exit_code != '0'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -48,16 +50,19 @@ jobs:
           WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/scheduled_e2e_test.yml
           REF_NAME: ${{ github.ref_name }}
           EVENT_NAME: ${{ github.event_name }}
+          REVIEWS_EXIT: ${{ steps.e2e_reviews.outputs.exit_code }}
+          SEARCH_EXIT: ${{ steps.e2e_search.outputs.exit_code }}
         run: |
-          TITLE="E2E Test Failure - $(date -u +'%Y-%m-%d %H:%M UTC')"
+          set -euo pipefail
 
           REVIEWS_STATUS="passed"
           SEARCH_STATUS="passed"
-          if [ "${{ steps.e2e_reviews.outputs.exit_code }}" != "0" ]; then REVIEWS_STATUS="failed"; fi
-          if [ "${{ steps.e2e_search.outputs.exit_code }}" != "0" ]; then SEARCH_STATUS="failed"; fi
+          [ "$REVIEWS_EXIT" = "0" ] || REVIEWS_STATUS="failed"
+          [ "$SEARCH_EXIT" = "0" ] || SEARCH_STATUS="failed"
 
-          REVIEWS_OUTPUT=$(tail -40 e2e_reviews_output.txt)
-          SEARCH_OUTPUT=$(tail -40 e2e_search_output.txt)
+          # Defensive: if a suite died before tee created its log, still report.
+          REVIEWS_OUTPUT=$(tail -40 e2e_reviews_output.txt 2>/dev/null || echo "(no output captured)")
+          SEARCH_OUTPUT=$(tail -40 e2e_search_output.txt 2>/dev/null || echo "(no output captured)")
 
           cat > issue_body.md << ENDOFBODY
           ## Scheduled E2E Test Failed
@@ -65,6 +70,7 @@ jobs:
           **Run:** ${RUN_URL}
           **Branch:** \`${REF_NAME}\`
           **Triggered by:** \`${EVENT_NAME}\`
+          **Detected:** $(date -u +'%Y-%m-%d %H:%M UTC')
 
           | Suite | Status |
           |-------|--------|
@@ -83,10 +89,24 @@ jobs:
           ${SEARCH_OUTPUT}
           \`\`\`
 
-          > This issue was auto-created by the [Scheduled E2E Test](${WORKFLOW_URL}) workflow.
+          > Auto-reported by the [Scheduled E2E Test](${WORKFLOW_URL}) workflow.
           ENDOFBODY
 
-          gh issue create --title "$TITLE" --body-file issue_body.md --label "bug,e2e"
+          # Reuse the open report if one exists, so a store-side outage that
+          # persists for days does not open one issue per day.
+          EXISTING=$(gh issue list --state open --label e2e --json number,title \
+            | jq -r '[.[] | select(.title | startswith("E2E Test Failure"))] | .[0].number // empty')
+
+          if [[ "$EXISTING" =~ ^[0-9]+$ ]]; then
+            echo "Commenting on existing report #${EXISTING}"
+            gh issue comment "$EXISTING" --body-file issue_body.md
+          else
+            echo "Opening a new report"
+            gh issue create \
+              --title "E2E Test Failure - $(date -u +'%Y-%m-%d %H:%M UTC')" \
+              --body-file issue_body.md \
+              --label "bug,e2e"
+          fi
 
       - name: Fail the workflow
         if: steps.e2e_reviews.outputs.exit_code != '0' || steps.e2e_search.outputs.exit_code != '0'
