@@ -44,7 +44,9 @@ from app_reviews import Review
 
     Key deduplication on `(store, source, id)`, and use `source` to tell provenance apart.
 
-Only ids from an `official` source are accepted by that store's reply API -- Google Play `androidpublisher` `reviews.reply` and App Store Connect `customerReviewResponses`. A `scraper` id will be rejected.
+For App Store Connect, `customerReviewResponses` requires a Connect `customerReviews.id`. RSS ids are numeric (`14357217033`) and Connect ids are opaque, and Apple exposes no mapping between them -- the `customerReviews` endpoint has no id filter and no legacy-id attribute. So an `appstore_scraper` id cannot be used to reply.
+
+Google Play appears to use one identifier space for both providers, so a `googleplay_scraper` id may be usable with `androidpublisher` `reviews.reply`. This package neither implements replies nor tests that, so treat it as unverified.
 
 ---
 
