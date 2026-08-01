@@ -2,6 +2,14 @@
 
 All models are frozen dataclasses with `__slots__`.
 
+!!! note "Frozen means fields cannot be reassigned, not that contents cannot change"
+
+    `frozen=True` rejects `result.reviews = [...]`, but the list itself is a plain
+    `list`: `result.reviews.append(...)` and `review.raw["k"] = v` both work and
+    mutate the model in place. Nothing in this package does that; `filter`, `sort`
+    and `limit` all return new objects. Treat the containers as read-only, and copy
+    before mutating if you need to.
+
 ---
 
 ## Review
@@ -16,24 +24,26 @@ from app_reviews import Review
 |-------|------|---------|-------------|
 | `store` | `"appstore"` or `"googleplay"` | Required | Which store. |
 | `app_id` | `str` | Required | App ID or package name. |
-| `country` | `str` | Required | Two-letter country code. |
+| `country` | `str \| None` | Required | Storefront queried, not the reviewer's location. `None` if the source does not report one (`googleplay_official`, `googleplay_scraper`: Play has one global review corpus, so there is no storefront to report). |
 | `rating` | `int` | Required | Star rating 1-5. Validated on creation. |
-| `title` | `str` | Required | Review title. May be empty for Google Play. |
+| `title` | `str \| None` | Required | Review title. `None` where the source has no title concept; Google Play reviews have no titles. |
 | `body` | `str` | Required | Review body text. |
 | `author_name` | `str` | Required | Author display name. |
-| `created_at` | `datetime` | Required | When the review was posted. |
 | `source` | `str` | Required | Data source: `appstore_scraper`, `appstore_official`, `googleplay_scraper`, or `googleplay_official`. |
+| `created_at` | `datetime` or `None` | `None` | When the review was posted. `None` where the source reports no creation date. |
+| `updated_at` | `datetime` or `None` | `None` | Last edit time. `None` where the source reports no modification date. |
 | `app_version` | `str` or `None` | `None` | App version reviewed. |
-| `updated_at` | `datetime` or `None` | `None` | Last edit time. |
 | `language` | `str` or `None` | `None` | Review language. |
 | `id` | `str` | `""` | Raw identifier assigned by the source. See below. |
 | `fetched_at` | `datetime` or `None` | `None` | When the review was fetched. |
-| `is_edited` | `bool` | `False` | Whether the review was edited. |
-| `raw` | `dict` or `None` | `None` | Raw API payload. |
+| `raw` | `dict`, `list` or `None` | `None` | Raw API payload, exactly as the source sent it. The iTunes and Connect APIs send objects; Play's endpoints send positional arrays. |
+
+Rows are in field order, which is also the positional-constructor order,
+though `Review` is far easier to get right with keywords.
 
 ### Review IDs
 
-`id` is the identifier the source assigned, passed through unchanged -- the App Store RSS `id` or Connect `customerReviews.id`, the Google Play `batchexecute` review id or `androidpublisher` `reviewId`.
+`id` is the identifier the source assigned, passed through unchanged: the App Store RSS `id` or Connect `customerReviews.id`, the Google Play `batchexecute` review id or `androidpublisher` `reviewId`.
 
 !!! warning "IDs are not comparable across sources"
 
@@ -44,7 +54,7 @@ from app_reviews import Review
 
     Key deduplication on `(store, source, id)`, and use `source` to tell provenance apart.
 
-For App Store Connect, `customerReviewResponses` requires a Connect `customerReviews.id`. RSS ids are numeric (`14357217033`) and Connect ids are opaque, and Apple exposes no mapping between them -- the `customerReviews` endpoint has no id filter and no legacy-id attribute. So an `appstore_scraper` id cannot be used to reply.
+For App Store Connect, `customerReviewResponses` requires a Connect `customerReviews.id`. RSS ids are numeric (`14357217033`) and Connect ids are opaque, and Apple exposes no mapping between them: the `customerReviews` endpoint has no id filter and no legacy-id attribute. So an `appstore_scraper` id cannot be used to reply.
 
 Google Play appears to use one identifier space for both providers, so a `googleplay_scraper` id may be usable with `androidpublisher` `reviews.reply`. This package neither implements replies nor tests that, so treat it as unverified.
 
@@ -52,7 +62,7 @@ Google Play appears to use one identifier space for both providers, so a `google
 
 ## FetchResult
 
-The return value of `client.fetch()`. Contains reviews and any per-country errors. Iterable -- loop directly to get `Review` objects.
+The return value of `client.fetch()` / `client.afetch()`. Contains reviews, any per-country errors, and a per-country breakdown. Iterable: loop directly to get `Review` objects.
 
 ```python
 from app_reviews import FetchResult
@@ -62,8 +72,9 @@ from app_reviews import FetchResult
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `reviews` | `list[Review]` | The fetched reviews. |
-| `errors` | `list[FetchError]` | Per-country fetch failures. |
+| `reviews` | `list[Review]` | The fetched reviews, merged across countries, filtered and sorted. |
+| `errors` | `list[FetchError]` | Per-country fetch failures. Derived from `outcomes`, so it can never disagree with them or be lost by a transform. |
+| `outcomes` | `list[CountryOutcome]` | One entry per country actually walked. See [CountryOutcome](#countryoutcome). |
 
 ### Methods
 
@@ -75,9 +86,15 @@ from app_reviews import FetchResult
 | `filter(ratings, since, until)` | `FetchResult` | Return a new filtered `FetchResult`. |
 | `sort(order)` | `FetchResult` | Return a new sorted `FetchResult`. |
 | `limit(n)` | `FetchResult` | Return a new `FetchResult` truncated to `n` reviews. |
-| `to_dicts()` | `list[dict]` | Convert reviews to plain dicts. |
+| `to_dicts(include_raw=False)` | `list[dict]` | JSON-serialisable plain dicts: ISO 8601 timestamps, `raw` omitted unless asked. |
 
-A fetch can partially succeed. Check `result.errors` to see which countries failed.
+A fetch can partially succeed. Check `result.errors` to see which countries failed, and `result.outcomes` for the full per-country picture, including countries that succeeded but stopped early on `since` or `limit`.
+
+!!! warning "Errors are more visible than they used to be"
+    Older versions discarded a country's page error once that country had
+    already yielded some reviews, so a non-empty `FetchResult` could still
+    hide a failure. Errors now always reach `result.errors` and the matching
+    `CountryOutcome.error`.
 
 ---
 
@@ -91,8 +108,147 @@ from app_reviews import FetchError
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `country` | `str` | Two-letter country code. |
+| `country` | `str \| None` | Storefront that failed, or `None` for a global source. |
 | `message` | `str` | Error description. |
+| `kind` | `ErrorKind` | What kind of failure this was. Branch retry policy on this, not `message`. See [ErrorKind](#errorkind). |
+| `status` | `int \| None` | HTTP status code, if the exchange produced one. |
+| `retryable` | `bool` | Read-only, derived from `kind`. Prefer deciding policy per `kind` yourself over trusting this. |
+
+---
+
+## What each source actually fills
+
+Measured against the live APIs, not inferred from the schema. A blank cell means
+the source never reports that field, so it is always `None`, not "sometimes
+missing".
+
+| field | `appstore_scraper` | `appstore_official` | `googleplay_scraper` | `googleplay_official` |
+|---|---|---|---|---|
+| `id` | yes | yes | yes | yes |
+| `store` / `app_id` / `source` | yes | yes | yes | yes |
+| `rating` / `body` / `author_name` | yes | yes | yes | yes |
+| `fetched_at` | yes | yes | yes | yes |
+| `created_at` | - | yes | yes | - |
+| `updated_at` | yes | - | - | yes |
+| `raw` | yes | yes | yes | yes |
+| `country` | yes | yes | - | - |
+| `title` | yes | yes | - | - |
+| `app_version` | yes | - | mostly | yes |
+| `language` | - | - | - | - |
+
+Two things worth planning around:
+
+- **The paid API reports less than the free one in places.** App Store Connect
+  sends only `body`, `createdDate`, `rating`, `reviewerNickname`, `territory` and
+  `title`, so `app_version` is always `None` on `appstore_official` while the RSS
+  feed does provide it.
+- **`language` is never populated by any source.**
+- **No source reports both timestamps.** Exactly one of `created_at`/`updated_at`
+  is set for every source this package has, and it is the field that source
+  orders by; read `review.dated_at` for whichever is present. The model itself
+  only rejects a review with *neither*, so this is a property of the four
+  providers rather than an invariant `Review` enforces. `is_edited` was removed, because
+  nothing can tell us.
+
+`country` follows one alphabet everywhere: Connect reports ISO alpha-3
+(`"USA"`), which is normalised to the alpha-2 form `Country` uses (`"us"`).
+Apple's original value stays in `raw["attributes"]["territory"]`.
+
+## CountryOutcome
+
+What one country's fetch actually did. Part of `FetchResult.outcomes`.
+
+```python
+from app_reviews import CountryOutcome
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `country` | `str \| None` | The country walked, or `None` for a global source. |
+| `pages` | `int` | Number of pages requested. |
+| `reviews_fetched` | `int` | Reviews this country's walk pulled off the wire, **before** the cross-country filter/sort/limit. Compare with `len(result.reviews)`, which is what survived: `fetch(ratings=[5])` makes them differ, and the gap tells you the filter is working. |
+| `stopped_because` | `StopReason` | Why the walk ended. See [StopReason](#stopreason). |
+| `error` | `FetchError \| None` | Set if the walk ended on an error. |
+| `elapsed` | `float` | Wall-clock seconds spent on this country. |
+
+`stopped_because` distinguishes "there is no more data" (`"exhausted"`) from
+"we stopped asking" (`"limit"`, `"since"`), facts that look identical if you
+only see the review count.
+
+---
+
+## PageResult
+
+The result of one provider page request, returned by `fetch_page()` / `afetch_page()`, and yielded by `iter_pages()` / `aiter_pages()`. See [Paging and cursors](../guide/paging.md).
+
+```python
+from app_reviews import PageResult
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `reviews` | `list[Review]` | Reviews on this page. |
+| `next_cursor` | `str \| None` | Opaque, provider-specific cursor. Persist it verbatim to resume later. `None` means no more pages. |
+| `error` | `FetchError \| None` | Set if this page failed. |
+| `stopped_because` | `StopReason \| None` | Set only on the final page of an `iter_pages()`/`aiter_pages()` walk. Always `None` on a bare `fetch_page()` call, which has nothing to stop. |
+
+---
+
+## ErrorKind
+
+A `Literal` classifying why a fetch failed. Branch retry policy on this rather than on `message` text or a caught exception type.
+
+```python
+from app_reviews import ErrorKind
+```
+
+| Value | Meaning |
+|-------|---------|
+| `"rate_limited"` | HTTP 429. |
+| `"auth"` | HTTP 401 or 403. |
+| `"not_found"` | HTTP 404. |
+| `"server"` | HTTP 5xx. |
+| `"transport"` | Connection failure, timeout, or an unmapped 4xx. |
+| `"parse"` | The response body was malformed, not `json.JSONDecodeError` raised out of the call but a classified error you can inspect. |
+
+---
+
+## StopReason
+
+A `Literal` reporting why a page walk ended. Appears on `PageResult.stopped_because` (final page only) and `CountryOutcome.stopped_because`.
+
+```python
+from app_reviews import StopReason
+```
+
+| Value | Meaning |
+|-------|---------|
+| `"exhausted"` | The provider ran out of pages. There is no more data. |
+| `"limit"` | The caller's `limit` was reached. More data may exist. |
+| `"since"` | A page predated `since`, so paging stopped early. More data may exist. |
+| `"cycle"` | The source repeated a cursor, so following it again would not advance. More data may exist, but this walk cannot reach it. |
+| `"stalled"` | The source kept issuing fresh cursors but returned no reviews for several consecutive pages, so it is not advancing. |
+| `"max_pages"` | The walk hit its page ceiling. More data may exist; resume from the final page's cursor. |
+| `"error"` | The walk failed. See the accompanying `FetchError`. |
+
+`"exhausted"` outranks both `"limit"` and `"since"` when they apply together, so
+"there is no more data" is never mislabelled "we stopped asking". `"stalled"` and
+`"max_pages"` rank last for the same reason: they mean the walk gave up on a
+source that would not end, so any reason the source or the caller supplied is the
+truer answer.
+
+`"cycle"`, `"stalled"` and `"max_pages"` are the walk's three floors against a
+source that never finishes. Nothing else bounds one: the App Store RSS feed has
+its own page ceiling, but Connect and both Play sources rely on the endpoint to
+stop issuing cursors.
+
+- `"cycle"` catches a repeated page token.
+- `"stalled"` catches the harder case, a *fresh* token every page with no reviews
+  on it. `limit` and `since` are both driven by reviews actually seen, so an
+  empty-page source escapes them both: `limit=5` would otherwise walk forever.
+- `"max_pages"` is the backstop for a source that returns data forever, and it
+  also bounds the cursor set the walk retains to detect cycles. Raise
+  `MAX_PAGES` on the client class if a storefront genuinely has more.
 
 ---
 
@@ -149,6 +305,14 @@ from app_reviews import RetryConfig
 | `backoff_factor` | `float` | `0.5` | Multiplier for wait time between retries. |
 | `timeout` | `float` | `30.0` | Per-request timeout in seconds. |
 | `retry_on` | `list[int]` | `[500, 502, 503, 504, 429]` | HTTP status codes that trigger a retry. |
+| `max_backoff` | `float` | `60.0` | Ceiling on any single wait, in seconds. |
+
+Waits follow `backoff_factor * 2**attempt`, capped at `max_backoff`. A server's
+`Retry-After` header overrides that schedule when present, because it is the only party
+that knows when it will serve again, and returning sooner than asked is what turns
+throttling into a longer block. Both seconds (`Retry-After: 30`) and the HTTP-date
+form are read, and both are capped at `max_backoff` too, so an outsized header
+cannot park a request.
 
 ```python
 from app_reviews import AppStoreReviews, RetryConfig
@@ -162,12 +326,12 @@ client = AppStoreReviews(
 
 ## AppMetadata
 
-Returned by `lookup_metadata()`.
+Returned by `search()` and `lookup()` on the search clients.
 
 ```python
-from app_reviews.utils.metadata import lookup_metadata
+from app_reviews import AppStoreSearch
 
-metadata = lookup_metadata("123456789")
+metadata = AppStoreSearch().lookup("123456789")   # AppMetadata | None
 ```
 
 | Field | Type | Description |
@@ -178,21 +342,57 @@ metadata = lookup_metadata("123456789")
 | `developer` | `str` | Developer or publisher. |
 | `category` | `str` | Primary category. |
 | `price` | `str` | Price or "Free". |
-| `version` | `str` | Current version. |
+| `version` | `str` | Current version, where the store publishes one. |
 | `rating` | `float` | Average star rating. |
 | `rating_count` | `int` | Total number of ratings. |
 | `url` | `str` | Store page URL. |
+| `current_version_release_date` | `datetime \| None` | When the current version shipped. |
+| `first_release_date` | `datetime \| None` | When the app first appeared on the store. |
+
+Text and number fields are non-optional, so a store that does not report one gets
+a stated placeholder rather than `None`. The two dates are the exception: a date
+has no honest placeholder, and a sentinel would sort, filter and diff as though it
+were real. Precision differs by store: the App Store sends a real timestamp,
+Google Play only the day it renders, so a Play date is midnight UTC on that day.
+Measured against the live stores:
+
+| field | `AppStoreSearch` | `GooglePlaySearch.lookup` | `GooglePlaySearch.search` |
+|---|---|---|---|
+| `name` / `developer` / `category` / `rating` | yes | yes | yes |
+| `rating_count` | yes | yes | always `0` |
+| `version` | yes | when the app publishes one | always `"Varies with device"` |
+| `icon_url` | yes | yes | yes |
+| `current_version_release_date` / `first_release_date` | yes, to the second | yes, to the day | always `None` |
+
+- **Google Play publishes a version for some apps, not all.** `lookup()` returns
+  the real one when the detail page carries it, and `"Varies with device"` when it
+  does not, which is what the store itself shows for an app shipping per-device
+  variants. Verified against the `us` storefront: Firefox publishes `153.0.1`,
+  while Spotify and Duolingo publish nothing. A regular *search* hit has no version
+  field at all, so it always reports the placeholder; use `lookup()` for a real
+  one. Not to be confused with the version string attached to a *review*, which
+  names the build that reviewer was running rather than the app's current release.
+- **Play's search layout carries no rating count.** A regular search hit has a
+  rating but no count anywhere in it, so `rating_count` is `0`. Two exceptions get
+  a real count: `lookup()`, and the one *featured* hit a search returns, because
+  Play embeds a full detail block for it. Use `lookup()` when you need counts.
+- **`price` is formatted with `$` regardless of storefront.** Play reports the
+  amount in the storefront's own currency, so a non-dollar storefront (`country=`
+  anything billing in another currency) yields a correct number with the wrong
+  symbol.
 
 ---
 
 ## Type Aliases
 
 ```python
-from app_reviews.models.types import Store, ProviderName, Source
+from app_reviews.models.types import Store, Source
 ```
 
 | Type | Values |
 |------|--------|
 | `Store` | `"appstore"`, `"googleplay"` |
-| `ProviderName` | `"scraper"`, `"official"` |
 | `Source` | `"appstore_scraper"`, `"appstore_official"`, `"googleplay_scraper"`, `"googleplay_official"` |
+
+---
+

@@ -1,56 +1,11 @@
-"""Public models for app-reviews."""
+"""The package's data types, one module per group.
 
-from __future__ import annotations
+Not a re-export surface: import these from ``app_reviews``, which is the whole
+public API. Inside the package, import the module that defines the type:
 
-from typing import Any
-
-from app_reviews.models.auth import (
-    AppStoreAuth,
-    ConnectCredentials,
-    GooglePlayAuth,
-)
-from app_reviews.models.config import ReviewConfig
-from app_reviews.models.country import Country
-from app_reviews.models.export import ExportConfig
-from app_reviews.models.metadata import AppMetadata
-from app_reviews.models.proxy import ProxyConfig
-from app_reviews.models.result import FetchError, FetchResult
-from app_reviews.models.retry import RetryConfig
-from app_reviews.models.review import Review
-from app_reviews.models.sort import Sort
-
-
-def load_config(overrides: dict[str, Any] | None = None) -> ReviewConfig:
-    """Build a ReviewConfig from optional overrides."""
-    if not overrides:
-        return ReviewConfig()
-
-    raw = dict(overrides)
-    nested_map = {
-        "proxy": ProxyConfig,
-        "retry": RetryConfig,
-        "export": ExportConfig,
-    }
-    for key, cls in nested_map.items():
-        if key in raw and isinstance(raw[key], dict):
-            raw[key] = cls(**raw[key])
-
-    return ReviewConfig(**raw)
-
-
-__all__ = [
-    "AppMetadata",
-    "AppStoreAuth",
-    "ConnectCredentials",
-    "Country",
-    "ExportConfig",
-    "FetchError",
-    "FetchResult",
-    "GooglePlayAuth",
-    "ProxyConfig",
-    "RetryConfig",
-    "Review",
-    "ReviewConfig",
-    "Sort",
-    "load_config",
-]
+- ``types``: ``Store``, ``Source``, ``ErrorKind``, ``StopReason``, ``Sort``
+- ``config``: ``RetryConfig`` and the credential models
+- ``review`` / ``page`` / ``result``: what a fetch produces
+- ``country``: the storefront enum
+- ``metadata``: ``AppMetadata``
+"""

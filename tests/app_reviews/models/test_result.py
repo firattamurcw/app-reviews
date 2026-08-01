@@ -1,9 +1,12 @@
 """Tests for FetchResult."""
 
+import json
 from datetime import UTC, date, datetime
 
-from app_reviews.models.result import FetchError, FetchResult
-from app_reviews.models.sort import Sort
+import pytest
+
+from app_reviews.models.result import CountryOutcome, FetchError, FetchResult
+from app_reviews.models.types import Sort
 from tests.app_reviews.factories import make_review
 
 
@@ -54,14 +57,6 @@ def test_filter_by_until():
     result = FetchResult(reviews=[old, new]).filter(until=date(2025, 1, 1))
     assert len(result) == 1
     assert next(iter(result)).id == "1"
-
-
-def test_filter_preserves_errors():
-    err = FetchError(country="gb", message="fail")
-    r1 = make_review(id="1", rating=5)
-    r2 = make_review(id="2", rating=1)
-    result = FetchResult(reviews=[r1, r2], errors=[err]).filter(ratings=[5])
-    assert result.errors == [err]
 
 
 def test_filter_is_non_destructive():
@@ -123,9 +118,199 @@ def test_chain_filter_sort_limit():
     assert next(iter(result)).id == "1"
 
 
-def test_to_dicts():
-    r = make_review(id="1", rating=4, title="Nice", body="Good app")
-    dicts = FetchResult(reviews=[r]).to_dicts()
-    assert len(dicts) == 1
-    assert dicts[0]["rating"] == 4
-    assert dicts[0]["title"] == "Nice"
+class TestToDicts:
+    """Delegates to ``Review.to_dict`` so there is one conversion, not two."""
+
+    def test_converts_each_review(self):
+        r = make_review(id="1", rating=4, title="Nice", body="Good app")
+        dicts = FetchResult(reviews=[r]).to_dicts()
+
+        assert len(dicts) == 1
+        assert dicts[0]["rating"] == 4
+        assert dicts[0]["title"] == "Nice"
+
+    def test_excludes_raw_by_default(self):
+        r = make_review(raw={"entry": ["payload"]})
+
+        assert "raw" not in FetchResult(reviews=[r]).to_dicts()[0]
+
+    def test_include_raw_reaches_through(self):
+        r = make_review(raw={"entry": ["payload"]})
+
+        assert FetchResult(reviews=[r]).to_dicts(include_raw=True)[0]["raw"] == {
+            "entry": ["payload"]
+        }
+
+    def test_the_output_is_json_serialisable(self):
+        """`json.dumps(result.to_dicts())` raised TypeError on the datetimes,
+        which is why callers needed the exporters at all."""
+        result = FetchResult(reviews=[make_review(), make_review(id="2")])
+
+        assert len(json.loads(json.dumps(result.to_dicts()))) == 2
+
+
+def _outcome(country="us", stopped_because="exhausted"):
+    return CountryOutcome(
+        country=country,
+        pages=3,
+        reviews_fetched=120,
+        stopped_because=stopped_because,
+        elapsed=0.5,
+    )
+
+
+class TestCountryOutcome:
+    def test_error_defaults_to_none(self):
+        assert _outcome().error is None
+
+    def test_elapsed_is_whatever_the_walk_measured(self):
+        assert _outcome().elapsed == 0.5
+
+    def test_carries_error_for_failed_country(self):
+        error = FetchError(country="de", message="denied", kind="auth", status=401)
+        outcome = CountryOutcome(
+            country="de",
+            pages=0,
+            reviews_fetched=0,
+            stopped_because="error",
+            elapsed=0.5,
+            error=error,
+        )
+        assert outcome.error.kind == "auth"
+
+
+class TestFetchResultOutcomes:
+    def test_defaults_to_empty(self):
+        assert FetchResult().outcomes == []
+
+    def test_filter_preserves_outcomes(self):
+        result = FetchResult(reviews=[], outcomes=[_outcome()])
+        assert result.filter(ratings=[5]).outcomes == [_outcome()]
+
+    def test_sort_preserves_outcomes(self):
+        result = FetchResult(reviews=[], outcomes=[_outcome()])
+        assert result.sort().outcomes == [_outcome()]
+
+    def test_limit_preserves_outcomes(self):
+        reviews = [make_review(id="1"), make_review(id="2")]
+        result = FetchResult(reviews=reviews, outcomes=[_outcome()])
+        limited = result.limit(1)
+        assert len(limited.reviews) == 1
+        assert limited.outcomes == [_outcome()]
+
+
+class TestNoDerivedFieldsAreStored:
+    """Three fields stored a value that was always computable from a neighbour.
+
+    A stored derivation can disagree with its source. These cannot now.
+    """
+
+    def test_errors_is_derived_from_outcomes(self):
+        err = FetchError(country="gb", message="boom", kind="rate_limited", status=429)
+        result = FetchResult(
+            reviews=[],
+            outcomes=[
+                CountryOutcome(
+                    country="us",
+                    pages=1,
+                    reviews_fetched=5,
+                    stopped_because="exhausted",
+                    elapsed=0.5,
+                ),
+                CountryOutcome(
+                    country="gb",
+                    pages=1,
+                    reviews_fetched=0,
+                    stopped_because="error",
+                    elapsed=0.5,
+                    error=err,
+                ),
+            ],
+        )
+
+        assert result.errors == [err]
+
+    def test_no_outcomes_means_no_errors(self):
+        assert FetchResult(reviews=[]).errors == []
+
+    def test_errors_cannot_be_set_independently_of_outcomes(self):
+        """It was a constructor argument, so the two could contradict."""
+        with pytest.raises(TypeError):
+            FetchResult(reviews=[], errors=[1])  # type: ignore[call-arg]
+
+    def test_errors_survives_a_transform(self):
+        err = FetchError(country="gb", message="boom", kind="server", status=503)
+        outcome = CountryOutcome(
+            country="gb",
+            pages=1,
+            reviews_fetched=1,
+            stopped_because="error",
+            elapsed=0.1,
+            error=err,
+        )
+        result = FetchResult(reviews=[make_review(rating=1)], outcomes=[outcome])
+
+        assert result.filter(ratings=[5]).errors == [err]
+
+    @pytest.mark.parametrize(
+        ("kind", "expected"),
+        [
+            ("rate_limited", True),
+            ("server", True),
+            ("transport", True),
+            ("auth", False),
+            ("not_found", False),
+            ("parse", False),
+        ],
+    )
+    def test_retryable_is_derived_from_kind(self, kind, expected):
+        err = FetchError(country="us", message="x", kind=kind)
+
+        assert err.retryable is expected
+
+    def test_retryable_cannot_be_set(self):
+        with pytest.raises(TypeError):
+            FetchError(  # type: ignore[call-arg]
+                country="us", message="x", kind="auth", retryable=True
+            )
+
+
+class TestOutcomeNamesWhatItCounts:
+    """``CountryOutcome.reviews`` sat next to ``FetchResult.reviews`` meaning
+    something else: one counts what the walk fetched, the other what survived
+    filtering. A plain ``fetch(ratings=[...])`` made them differ.
+    """
+
+    def test_reviews_fetched_replaces_reviews(self):
+        outcome = CountryOutcome(
+            country="us",
+            pages=3,
+            reviews_fetched=30,
+            stopped_because="exhausted",
+            elapsed=0.5,
+        )
+
+        assert outcome.reviews_fetched == 30
+        assert not hasattr(outcome, "reviews")
+
+
+class TestElapsedIsRequired:
+    """A default of 0.0 is a plausible-looking wrong timing.
+
+    ``CountryCollector`` always knows the real duration (it starts a clock at
+    construction), so the only thing the default enabled was a hand-built outcome
+    claiming a fetch took no time at all.
+    """
+
+    def test_elapsed_must_be_supplied(self):
+        with pytest.raises(TypeError):
+            CountryOutcome(  # type: ignore[call-arg]
+                country="us", pages=1, reviews_fetched=1, stopped_because="exhausted"
+            )
+
+    def test_a_real_walk_reports_a_real_duration(self):
+        from app_reviews.core.paging import CountryCollector
+
+        outcome = CountryCollector("us").outcome()
+
+        assert outcome.elapsed > 0

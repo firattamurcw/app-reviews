@@ -15,7 +15,7 @@ pre-commit install
 
 | Command | What it does |
 |---------|--------------|
-| `make all` | lint + typecheck + test + build — run this before pushing |
+| `make all` | lint + typecheck + test + build; run this before pushing |
 | `make test` | tests with coverage |
 | `make format` | auto-fix style |
 | `make docs-serve` | preview docs at `localhost:8000` |
@@ -25,10 +25,10 @@ Live tests hit real store endpoints and are skipped by default. Run them with `m
 ## Standards
 
 - Python 3.11+, `mypy --strict`, and ruff must all pass
-- Stdlib `urllib` for HTTP — no third-party HTTP libraries
-- `cryptography` is the only runtime dependency; keep it that way
+- All HTTP goes through the shared `HttpClient` in `app_reviews.core.http`
+- `cryptography` and `httpx` are the only runtime dependencies; keep it that way
 - Models are `@dataclass(frozen=True, slots=True)`
-- Coverage stays at or above 75%
+- Coverage stays at or above 85%
 
 ## Pull requests
 
@@ -36,4 +36,4 @@ Branch from `main`, add tests, run `make all`, open the PR. For anything large, 
 
 ## Security
 
-Please don't file public issues for vulnerabilities — see [SECURITY.md](SECURITY.md).
+Please don't file public issues for vulnerabilities. See [SECURITY.md](SECURITY.md).

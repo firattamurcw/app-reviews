@@ -12,6 +12,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -22,9 +23,6 @@ from app_reviews import (
     Review,
     Sort,
 )
-from app_reviews.exporters.csv import export_csv
-from app_reviews.exporters.json import export_json
-from app_reviews.exporters.jsonl import export_jsonl
 
 # Well-known, popular apps unlikely to be removed.
 APPLE_APP_ID = "389801252"  # Instagram
@@ -58,7 +56,7 @@ class TestLiveAppStore:
         assert 1 <= review.rating <= 5
         assert review.body
         assert review.author_name
-        assert review.created_at is not None
+        assert review.dated_at is not None  # created_at is None on RSS
 
     def test_multi_country(self) -> None:
         result = AppStoreReviews().fetch(
@@ -86,7 +84,7 @@ class TestLiveAppStore:
             limit=_LIMIT,
         )
         if len(result.reviews) >= 2:
-            dates = [r.created_at for r in result.reviews]
+            dates = [r.dated_at for r in result.reviews]
             assert dates == sorted(dates, reverse=True)
 
     def test_limit(self) -> None:
@@ -116,7 +114,7 @@ class TestLiveGooglePlay:
         assert 1 <= review.rating <= 5
         assert review.body is not None
         assert review.author_name
-        assert review.created_at is not None
+        assert review.dated_at is not None  # created_at is None on RSS
 
     def test_multi_country(self) -> None:
         result = GooglePlayReviews().fetch(
@@ -127,11 +125,18 @@ class TestLiveGooglePlay:
         assert len(result.reviews) > 0
 
     def test_filter_by_rating(self) -> None:
+        """Bounded with ``since``, not ``limit``.
+
+        ``ratings`` deliberately disables the limit-based early stop, because the walk
+        cannot know how many of the first N will survive filtering, so on an app
+        with millions of reviews ``limit`` alone walks to exhaustion. ``since``
+        does stop this source early, because it is newest-first.
+        """
         result = GooglePlayReviews().fetch(
             GOOGLE_APP_ID,
             countries=[Country.US],
             ratings=[1, 2],
-            limit=_LIMIT,
+            since=datetime.now(tz=UTC) - timedelta(days=2),
         )
         if result.reviews:
             assert all(r.rating <= 2 for r in result.reviews)
@@ -144,7 +149,7 @@ class TestLiveGooglePlay:
             limit=_LIMIT,
         )
         if len(result.reviews) >= 2:
-            dates = [r.created_at for r in result.reviews]
+            dates = [r.dated_at for r in result.reviews]
             assert dates == sorted(dates, reverse=True)
 
     def test_limit(self) -> None:
@@ -155,7 +160,7 @@ class TestLiveGooglePlay:
 
 
 # ===================================================================
-# Exports — verify all formats work with real data
+# Exports: verify all formats work with real data
 # ===================================================================
 
 
@@ -169,18 +174,24 @@ class TestLiveExport:
         assert result.reviews, "Need reviews to test exports"
         reviews = result.reviews
 
-        # JSON
-        parsed = json.loads(export_json(reviews))
+        rows = result.to_dicts()
+
+        # JSON round-trips straight out of to_dicts
+        parsed = json.loads(json.dumps(rows))
         assert len(parsed) == len(reviews)
         assert parsed[0]["store"] == "googleplay"
+        assert "raw" not in parsed[0]
 
         # JSONL
-        lines = [ln for ln in export_jsonl(reviews).strip().split("\n") if ln]
+        lines = [json.dumps(d) for d in rows]
         assert len(lines) == len(reviews)
 
-        # CSV
-        rows = list(csv.DictReader(io.StringIO(export_csv(reviews))))
-        assert len(rows) == len(reviews)
+        # CSV via the stdlib recipe the docs show
+        buf = io.StringIO()
+        writer = csv.DictWriter(buf, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+        assert len(list(csv.DictReader(io.StringIO(buf.getvalue())))) == len(reviews)
 
 
 # ===================================================================
@@ -223,8 +234,8 @@ class TestLiveCrossStore:
             GOOGLE_APP_ID, countries=[Country.US], limit=1
         )
         if as_result.reviews and gp_result.reviews:
-            as_keys = set(json.loads(export_json(as_result.reviews))[0].keys())
-            gp_keys = set(json.loads(export_json(gp_result.reviews))[0].keys())
+            as_keys = set(as_result.to_dicts()[0])
+            gp_keys = set(gp_result.to_dicts()[0])
             assert as_keys == gp_keys
 
     def test_core_fields_populated(self) -> None:
@@ -244,4 +255,4 @@ class TestLiveCrossStore:
             assert r.app_id
             assert 1 <= r.rating <= 5
             assert r.author_name
-            assert r.created_at is not None
+            assert r.dated_at is not None

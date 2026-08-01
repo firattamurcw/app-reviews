@@ -1,17 +1,52 @@
 # How It Works
 
-What happens under the hood when you call `client.fetch()`.
+What the package does when you call `client.fetch()`.
 
 ---
 
 ## The Fetch Pipeline
 
-1. **Resolve countries.** Normalize country codes to the provider's expected format.
-2. **Select a provider.** If auth credentials are provided, use the official API. Otherwise, use the free scraper.
-3. **Fetch from each country.** Send HTTP requests for each country in parallel using threads.
-4. **Paginate.** Follow pagination cursors until all available pages are consumed.
-5. **Filter and sort.** Apply date, rating, and sort filters to the collected reviews.
-6. **Return.** Package everything into a `FetchResult` with reviews and any per-country errors.
+`fetch()` is the top of a four-rung ladder. Each rung is built on the one
+below, so there is exactly one page-walk implementation:
+
+1. **Resolve countries.** Only the App Store RSS feed is per-storefront: the
+   requested list for per-country sources, or a single `[""]` call for global
+   APIs where the country dimension does not exist. That is the only place the
+   fact is recorded; providers do not also answer it. See
+   [Source capabilities](capabilities.md).
+2. **Walk each country's pages.** One request per page, following the
+   provider's opaque cursor.
+3. **Stop.** On an exhausted cursor, on `limit`, on a page older than `since`,
+   on a cursor the source repeated (`"cycle"`), on a run of review-less pages from
+   a source still issuing cursors (`"stalled"`), on the page ceiling
+   (`"max_pages"`), or on an error. Which one happened is reported in
+   `CountryOutcome.stopped_because`.
+4. **Merge, filter, sort, truncate.** Reviews from every country are combined,
+   then date and rating filters apply, then the sort, then `limit`.
+
+Countries are fetched concurrently (threads for `fetch()`, `asyncio.gather`
+behind a semaphore for `afetch()`), bounded by `concurrency`. See
+[Async](../guide/async.md).
+
+To drive the page walk yourself instead of calling `fetch()`, see
+[Paging and cursors](../guide/paging.md). To stream reviews without holding them
+all in memory, use `iter_reviews()`: step 4 is what forces `fetch()` to buffer
+the whole corpus, and `iter_reviews()` is the rung that skips it.
+
+### `since` reduces fetching, it does not just filter
+
+Passing `since` stops the walk once a page's oldest review predates it, so the
+remaining requests are never made. This requires the source to return reviews
+newest-first. Where that is not
+guaranteed, the walk runs to completion and `since` only filters, because a
+later page could still hold reviews inside the window.
+
+### `limit` means "the N best under `sort`"
+
+With `sort=Sort.NEWEST` on a newest-first source, `limit` also bounds the walk.
+With `Sort.OLDEST` or `Sort.RATING` it cannot: the highest-rated reviews are not
+the first ones fetched, so the walk is exhausted before truncating. That is
+correct but slower, and it is logged at INFO.
 
 ---
 
@@ -19,8 +54,8 @@ What happens under the hood when you call `client.fetch()`.
 
 The provider is selected automatically based on whether you provide auth credentials:
 
-- **With auth** -- uses the official API (App Store Connect or Google Play Developer API).
-- **Without auth** -- uses the free scraper (RSS feed or web scraper).
+- **With auth**: uses the official API (App Store Connect or Google Play Developer API).
+- **Without auth**: uses the free scraper (RSS feed or web scraper).
 
 There is no manual provider override. If you pass credentials, you get the official API.
 
@@ -34,11 +69,15 @@ There is no manual provider override. If you pass credentials, you get the offic
 | **Official (auth)** | App Store Connect API. Requires Apple Developer account + API key. | Google Play Developer API. Requires service account. |
 | **Source value** | `appstore_scraper` / `appstore_official` | `googleplay_scraper` / `googleplay_official` |
 
+Each source's behavioral differences (ordering guarantees, reply support,
+country handling, history depth) are captured as data in
+[Source capabilities](capabilities.md).
+
 ---
 
 ## Data Sources
 
-### Apple App Store -- RSS Feed (Scraper)
+### Apple App Store: RSS Feed (Scraper)
 
 Public JSON feed. No authentication.
 
@@ -47,9 +86,9 @@ Public JSON feed. No authentication.
 - Up to 50 reviews per page, paginates through all available pages.
 - Returns: review ID, rating, title, body, author, app version, timestamps.
 - **Limit:** ~500 most recent reviews per app per country.
-- Rate limits are generous.
+- Apple documents no rate limit for this feed.
 
-### Apple App Store -- App Store Connect API (Official)
+### Apple App Store: App Store Connect API (Official)
 
 Authenticated REST API for app developers.
 
@@ -61,7 +100,7 @@ Authenticated REST API for app developers.
 - Requires Apple Developer Program membership ($99/year).
 - Rate limit: ~450 requests/minute.
 
-### Google Play -- Web Scraper
+### Google Play: Web Scraper
 
 Sends requests to Google Play's internal batch endpoint.
 
@@ -70,10 +109,10 @@ Sends requests to Google Play's internal batch endpoint.
 - Up to 200 reviews per request, follows continuation tokens.
 - Automatic exponential backoff on rate limits.
 - Returns: review ID, rating, body, author, timestamps, app version, language.
-- **Undocumented endpoint** -- can break if Google changes their internal API.
+- **Undocumented endpoint**: can break if Google changes their internal API.
 - Google Play reviews do not have titles.
 
-### Google Play -- Developer API (Official)
+### Google Play: Developer API (Official)
 
 Authenticated REST API (v3).
 
@@ -84,6 +123,16 @@ Authenticated REST API (v3).
 - You can only access reviews for apps you own.
 - Requires Google Cloud + Google Play Developer account.
 - Permissions can take up to 24 hours to propagate.
+- **Only the last 7 days are retrievable.** Google documents this limit in a
+  `Note:` under "Retrieving a set of reviews" on the [reply-to-reviews
+  guide](https://developers.google.com/android-publisher/reply-to-reviews):
+  reviews are retrievable only if they were created or modified within the
+  last week. Full history requires a CSV export from Play Console, which this
+  package does not read. See
+  [how the sources differ](capabilities.md#history).
+- **No documented ordering.** The API gives no guarantee that pages arrive
+  newest-first, so the `since`/`limit` early stop never applies to this source, and
+  every fetch walks to exhaustion.
 
 ---
 
@@ -95,7 +144,8 @@ Authenticated REST API (v3).
 2. Build JWT with Key ID and Issuer ID.
 3. Sign with ES256.
 4. Send as `Authorization: Bearer {token}`.
-5. Fresh token per fetch operation.
+5. Signed once per client, not once per request. Reading the key and signing are
+   blocking work, so the async ladder does them in a thread.
 
 ### Google Play Developer API (RS256)
 
@@ -104,7 +154,9 @@ Authenticated REST API (v3).
 3. Sign with RS256.
 4. Exchange JWT for OAuth2 access token at `https://oauth2.googleapis.com/token`.
 5. Send access token as `Authorization: Bearer {token}`.
-6. Fresh token per fetch operation.
+6. Exchanged once per client, not once per request, and over the same
+   connection pool as the review requests, so it honours the same `proxy` and
+   `retry`.
 
 Private keys never leave your machine.
 
@@ -112,18 +164,58 @@ Private keys never leave your machine.
 
 ## HTTP Layer
 
-All HTTP uses Python's built-in `urllib`. No third-party HTTP dependencies.
+All HTTP goes through [`httpx`](https://www.python-httpx.org/), a required
+runtime dependency. Every sync call has an async twin using `httpx.AsyncClient`
+for real async I/O, not a thread-pool wrapper. See [Async](../guide/async.md).
 
-- **Retries** with configurable exponential backoff.
+- **One connection pool per client.** Each client owns an `HttpClient` that
+  holds a single `httpx.Client`/`AsyncClient` for its lifetime, so a ten-page
+  walk performs one TLS handshake rather than ten. Because the sockets outlive
+  the request, close the client when you are done, or use it as a context
+  manager:
+
+    ```python
+    with AppStoreReviews() as client:
+        result = client.fetch("324684580")
+    ```
+
+    The async ladder has `aclose()` and `async with`. A client stays usable
+    after `close()`; the next request reopens the pool.
+
+- **Retries** with configurable exponential backoff (`RetryConfig`).
 - **Timeouts** to prevent hanging requests.
-- **Proxy support** via constructor parameter.
+- **Proxy support** via constructor parameter. Pass your own pool with
+  `http=HttpClient(...)` to share one between clients or to set a custom
+  transport.
+- **Classified errors, one vocabulary.** A failed exchange (a bad status, a
+  transport failure, or a malformed response body) is classified into an
+  `ErrorKind` (`rate_limited`, `auth`, `not_found`, `server`, `transport`,
+  `parse`), so callers branch on `kind` instead of parsing exception text. How
+  it reaches you depends on the layer: `fetch`/`iter_pages` walk many pages
+  across many countries where partial success is normal, so they report a
+  `FetchError` as data; `search`/`lookup` are single requests with a single
+  outcome, so they raise: `RateLimitError`, `AuthError`, `ServerError` and the
+  rest, all under `HttpError`/`AppReviewsError`. The class is the classification.
+  Both are importable from the package root.
 
 ---
 
 ## Metadata Lookup
 
-`lookup_metadata()` fetches app info without fetching reviews.
+The search clients fetch app info without fetching reviews.
 
-- **Apple:** iTunes Lookup API (`https://itunes.apple.com/lookup?id={app_id}`).
+```python
+from app_reviews import AppStoreSearch, GooglePlaySearch
+
+metadata = AppStoreSearch().lookup("123456789")
+metadata = GooglePlaySearch().lookup("com.example.app")
+```
+
+- **Apple:** iTunes Lookup API (`https://itunes.apple.com/lookup?id={app_id}`),
+  which takes `id` for numeric track ids and `bundleId` otherwise; the client
+  picks the right param from the id's shape.
 - **Google:** Parses the Google Play store page HTML.
-- **Auto-detection:** Numeric IDs -> App Store, package names -> Google Play.
+- **Async:** `alookup()` is the async equivalent.
+- **No store guessing:** 0.6.0 removed the `lookup_metadata()` helper that
+  inferred the store from the id. The caller picks the client, because the caller
+  knows the store and the heuristic did not.

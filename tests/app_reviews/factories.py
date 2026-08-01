@@ -20,7 +20,6 @@ def make_review(
     app_version: str | None = None,
     created_at: datetime | None = None,
     updated_at: datetime | None = None,
-    is_edited: bool = False,
     source: str = "appstore_scraper",
     raw: dict | None = None,
     fetched_at: datetime | None = None,
@@ -39,9 +38,25 @@ def make_review(
         app_version=app_version,
         created_at=created_at or _BASE_DT,
         updated_at=updated_at,
-        is_edited=is_edited,
         source=source,
         raw=raw,
         fetched_at=fetched_at or _BASE_DT,
         id=id,
     )
+
+
+class StaticToken:
+    """A ``TokenSource`` that always returns the same header.
+
+    Providers ask their source per request so an expiring token gets refreshed;
+    a test that only cares about parsing wants that to be a constant.
+    """
+
+    def __init__(self, header: str = "Bearer test-token") -> None:
+        self._header = header
+
+    def authorization_header(self) -> str:
+        return self._header
+
+    async def aauthorization_header(self) -> str:
+        return self._header

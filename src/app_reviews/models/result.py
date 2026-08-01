@@ -2,27 +2,51 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from dataclasses import asdict, dataclass, field
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Any
 
-from .review import Review
-from .sort import Sort
-
-_SORT_KEYS = {
-    Sort.NEWEST: (lambda r: r.created_at, True),
-    Sort.OLDEST: (lambda r: r.created_at, False),
-    Sort.RATING: (lambda r: r.rating, True),
-}
+from app_reviews.models.review import Review
+from app_reviews.models.types import RETRYABLE_KINDS, ErrorKind, Sort, StopReason
 
 
 @dataclass(frozen=True, slots=True)
 class FetchError:
-    """A per-country fetch failure."""
+    """A per-country fetch failure.
 
-    country: str
+    Branch retry policy on ``kind``; ``retryable`` is only this package's opinion
+    about the same fact.
+    """
+
+    country: str | None
     message: str
+    kind: ErrorKind
+    status: int | None = None
+
+    @property
+    def retryable(self) -> bool:
+        """Whether this kind of failure is worth retrying."""
+        return self.kind in RETRYABLE_KINDS
+
+
+@dataclass(frozen=True, slots=True)
+class CountryOutcome:
+    """What one country's fetch actually did.
+
+    ``stopped_because`` distinguishes "there is no more data" (``exhausted``)
+    from "we stopped asking" (``limit``, ``since``).
+
+    ``reviews_fetched`` is what this country's walk pulled off the wire, before
+    filtering, so it can exceed ``len(result.reviews)``.
+    """
+
+    country: str | None
+    pages: int
+    reviews_fetched: int
+    stopped_because: StopReason
+    elapsed: float
+    error: FetchError | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,7 +54,16 @@ class FetchResult:
     """Structured result container for a fetch operation."""
 
     reviews: list[Review] = field(default_factory=list)
-    errors: list[FetchError] = field(default_factory=list)
+    outcomes: list[CountryOutcome] = field(default_factory=list)
+
+    @property
+    def errors(self) -> list[FetchError]:
+        """Every failure, in country order.
+
+        Read-only, so a filtered or truncated result cannot lose or contradict
+        them: there is one copy, on the outcomes.
+        """
+        return [o.error for o in self.outcomes if o.error is not None]
 
     def __iter__(self) -> Iterator[Review]:
         return iter(self.reviews)
@@ -54,34 +87,62 @@ class FetchResult:
             rating_set = set(ratings)
             filtered = [r for r in filtered if r.rating in rating_set]
         if since is not None:
-            since_dt = _to_aware_datetime(since)
-            filtered = [r for r in filtered if r.created_at >= since_dt]
+            since_dt = to_aware_datetime(since)
+            filtered = [r for r in filtered if r.dated_at >= since_dt]
         if until is not None:
-            until_dt = _to_aware_datetime(until)
-            filtered = [r for r in filtered if r.created_at <= until_dt]
-        return FetchResult(reviews=filtered, errors=self.errors)
+            until_dt = to_aware_datetime(until)
+            filtered = [r for r in filtered if r.dated_at <= until_dt]
+        return FetchResult(reviews=filtered, outcomes=self.outcomes)
 
     def sort(self, order: Sort = Sort.NEWEST) -> FetchResult:
         """Return a new FetchResult with sorted reviews (non-destructive)."""
-        key_fn, reverse = _SORT_KEYS[order]
+        key, reverse = self._sort_key(order)
         return FetchResult(
-            reviews=sorted(self.reviews, key=key_fn, reverse=reverse),
-            errors=self.errors,
+            reviews=sorted(self.reviews, key=key, reverse=reverse),
+            outcomes=self.outcomes,
         )
 
+    def _sort_key(self, order: Sort) -> tuple[Callable[[Review], Any], bool]:
+        """The key function and direction for one ordering.
+
+        Date orderings read ``dated_at`` rather than either timestamp directly,
+        so they compare whichever field the source actually ordered by. ``order``
+        is coerced so an equivalent plain string still works (``Sort`` is a
+        ``StrEnum``), and an unusable one says so instead of raising ``KeyError``.
+        """
+        coerced = Sort(order)
+        if coerced is Sort.RATING:
+            return (lambda review: review.rating), True
+        return (lambda review: review.dated_at), coerced is Sort.NEWEST
+
     def limit(self, n: int | None) -> FetchResult:
-        """Return a new FetchResult truncated to n reviews. No-op if n is None."""
+        """Return a new FetchResult truncated to n reviews. No-op if n is None.
+
+        A non-positive ``n`` means none. Guarded explicitly because ``n >= len``
+        is never true for a negative number, so ``reviews[:n]`` used to slice
+        from the tail and quietly drop the newest instead.
+        """
         if n is None or n >= len(self.reviews):
             return self
-        return FetchResult(reviews=self.reviews[:n], errors=self.errors)
+        if n <= 0:
+            return FetchResult(reviews=[], outcomes=self.outcomes)
+        return FetchResult(reviews=self.reviews[:n], outcomes=self.outcomes)
 
-    def to_dicts(self) -> list[dict[str, Any]]:
-        """Convert reviews to a list of plain dicts."""
-        return [asdict(r) for r in self.reviews]
+    def to_dicts(self, *, include_raw: bool = False) -> list[dict[str, Any]]:
+        """JSON-serialisable plain dicts, one per review.
+
+        Delegates to ``Review.to_dict``, which is the package's only
+        Review-to-dict conversion. See it for why ``raw`` is opt-in.
+        """
+        return [r.to_dict(include_raw=include_raw) for r in self.reviews]
 
 
-def _to_aware_datetime(d: date | datetime) -> datetime:
-    """Convert a date or datetime to a timezone-aware datetime."""
+def to_aware_datetime(d: date | datetime) -> datetime:
+    """Convert a date or naive datetime to a UTC-aware datetime.
+
+    The one implementation, so the page walk's early stop and ``filter``'s
+    boundary check cannot disagree about what ``since``/``until`` means.
+    """
     if isinstance(d, datetime):
         return d if d.tzinfo else d.replace(tzinfo=UTC)
     return datetime(d.year, d.month, d.day, tzinfo=UTC)

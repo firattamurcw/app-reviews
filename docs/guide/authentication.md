@@ -32,10 +32,10 @@ Click the **+** button to create a new API key. Give it a name (like "App Review
 
 After creating the key, you will see two values on the page:
 
-- **Key ID** -- a short alphanumeric string (like `ABC123DEF4`)
-- **Issuer ID** -- a UUID (like `12345678-1234-1234-1234-123456789012`)
+- **Key ID**, a short alphanumeric string (like `ABC123DEF4`)
+- **Issuer ID**, a UUID (like `12345678-1234-1234-1234-123456789012`)
 
-Copy both of these. You will need them.
+Copy both.
 
 **Step 4: Download the Private Key**
 
@@ -61,7 +61,9 @@ client = AppStoreReviews(
     )
 )
 
-result = client.fetch("123456789", countries=[Country.US, Country.GB])
+# Connect is global: one request, every territory. `countries=` is ignored
+# here (and warns); each review reports its own `country`.
+result = client.fetch("123456789")
 ```
 
 ### No Auth (Public RSS Feed)
@@ -71,7 +73,7 @@ If you do not provide `auth`, the client automatically uses the public RSS feed:
 ```python
 from app_reviews import AppStoreReviews
 
-# No auth — uses public RSS feed
+# No auth: uses the public RSS feed
 client = AppStoreReviews()
 result = client.fetch("123456789")
 ```
@@ -80,7 +82,8 @@ result = client.fetch("123456789")
 
 The package uses your `.p8` private key to sign a JWT (JSON Web Token) using the ES256 algorithm. This token is sent as a Bearer token in the `Authorization` header of each request to the App Store Connect API.
 
-Tokens are short-lived and generated fresh for each fetch operation. Your private key never leaves your machine.
+Tokens are short-lived. One client signs once and reuses the result until it
+nears expiry, not once per fetch. Your private key never leaves your machine.
 
 ---
 
@@ -108,7 +111,7 @@ Go to **APIs & Services** > **Library**, search for "Google Play Android Develop
 
 Go to **APIs & Services** > **Credentials**, click **Create Credentials** > **Service Account**.
 
-Give it a name (like "app-reviews") and click through the wizard. You do not need to grant it any Google Cloud roles -- the permissions come from the Google Play Console side.
+Give it a name (like "app-reviews") and click through the wizard. You do not need to grant it any Google Cloud roles; the permissions come from the Google Play Console side.
 
 **Step 4: Download the Key File**
 
@@ -136,7 +139,8 @@ client = GooglePlayReviews(
     )
 )
 
-result = client.fetch("com.example.app", countries=[Country.US, Country.GB])
+# Play has one global review corpus; `countries=` is ignored here.
+result = client.fetch("com.example.app")
 ```
 
 ### No Auth (Public Web Endpoint)
@@ -146,7 +150,7 @@ If you do not provide `auth`, the client automatically uses the public web endpo
 ```python
 from app_reviews import GooglePlayReviews
 
-# No auth — uses public web endpoint
+# No auth: uses the public web endpoint
 client = GooglePlayReviews()
 result = client.fetch("com.example.app")
 ```
@@ -155,4 +159,5 @@ result = client.fetch("com.example.app")
 
 The package reads your service account JSON file, extracts the RSA private key, and signs a JWT using the RS256 algorithm. This JWT is exchanged for an OAuth2 access token via Google's token endpoint.
 
-The access token is then used as a Bearer token in requests to the Google Play Developer API. Tokens are generated fresh for each fetch operation. Your private key never leaves your machine.
+The access token is then used as a Bearer token in requests to the Google Play Developer API. One client exchanges once and reuses the token until it nears expiry, not once
+per fetch. Your private key never leaves your machine.

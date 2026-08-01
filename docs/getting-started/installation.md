@@ -46,10 +46,9 @@ python -c "from app_reviews import AppStoreReviews; print('OK')"
 
 ## Dependencies
 
-One runtime dependency:
+Two runtime dependencies:
 
 | Package | Purpose |
 |---------|---------|
 | `cryptography` | JWT signing for authenticated API access |
-
-All HTTP requests use Python's built-in `urllib`.
+| `httpx` | HTTP transport, sync and async |
