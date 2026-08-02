@@ -183,7 +183,17 @@ class TestOfficialProvidersAreConstructible:
         # TokenSource is a plain Protocol, so isinstance is not available; what
         # actually matters is that both halves of the contract are present and
         # that the async one really is awaitable.
-        assert set(TokenSource.__protocol_attrs__) <= set(dir(ConnectAuth))
+        #
+        # The members are read off the annotations rather than
+        # ``__protocol_attrs__``, which is a CPython implementation detail added
+        # in 3.12 and absent on the 3.11 this package supports.
+        required = {
+            name
+            for name, value in vars(TokenSource).items()
+            if not name.startswith("_") and callable(value)
+        }
+        assert required == {"authorization_header", "aauthorization_header"}
+        assert required <= set(dir(ConnectAuth))
         assert inspect.iscoroutinefunction(ConnectAuth.aauthorization_header)
         assert not inspect.iscoroutinefunction(ConnectAuth.authorization_header)
         assert inspect.iscoroutinefunction(AppStoreOfficialProvider.afetch_page)

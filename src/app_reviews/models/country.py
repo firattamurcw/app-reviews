@@ -522,6 +522,16 @@ silent data bug, and the bijection tests in ``test_country.py`` cannot catch one
 """
 
 
+_ALPHA2_CODES: frozenset[str] = frozenset(c.value for c in Country)
+"""The alpha-2 values, as plain strings.
+
+``code in Country`` would read better, but it only works on Python 3.12 and up.
+Before that, testing a non-member against an enum class raises ``TypeError``, and
+this package supports 3.11. A value set is version-independent, and cheaper than
+the membership protocol either way.
+"""
+
+
 def normalise_country(code: str | None, *, warn_unknown: bool = True) -> str | None:
     """Return a storefront code in the alpha-2 form ``Country`` uses.
 
@@ -532,8 +542,8 @@ def normalise_country(code: str | None, *, warn_unknown: bool = True) -> str | N
 
     ``warn_unknown=False`` keeps the normalisation and drops the logging.
     ``Country`` is the iTunes storefront list, so "not a member" means "wrong"
-    only for Apple. Google Play serves markets Apple has no storefront in --
-    Serbia, Bosnia, Morocco, and warning on those would be noise on a
+    only for Apple. Google Play serves markets Apple has no storefront in
+    (Serbia, Bosnia, Morocco), and warning on those would be noise on a
     correct call.
     """
     if not code or not (code := code.strip()):
@@ -549,6 +559,6 @@ def normalise_country(code: str | None, *, warn_unknown: bool = True) -> str | N
             return code
         alpha2 = mapped
 
-    if warn_unknown and alpha2 not in Country:
+    if warn_unknown and alpha2 not in _ALPHA2_CODES:
         _LOG.warning("Unrecognised storefront code %r, passing through", code)
     return alpha2
