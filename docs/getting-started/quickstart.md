@@ -1,6 +1,6 @@
 # Quick Start
 
-Get from zero to fetching reviews in under 2 minutes.
+Fetching reviews from both stores, with no credentials.
 
 ---
 
@@ -15,7 +15,7 @@ result = client.fetch("123456789")
 for review in result:
     print(f"{review.rating}* {review.title}")
     print(f"  {review.body[:100]}")
-    print(f"  -- {review.author_name}, {review.country}")
+    print(f"  by {review.author_name}, {review.country}")
 ```
 
 Replace `"123456789"` with a real App Store ID (the number after `/id` in the app's URL).
@@ -32,7 +32,7 @@ result = client.fetch("com.example.app")
 
 for review in result:
     print(f"{review.rating}* {review.body[:100]}")
-    print(f"  -- {review.author_name}, {review.country}")
+    print(f"  by {review.author_name}, {review.country}")
 ```
 
 Replace `"com.example.app"` with a real package name (the `id` parameter in the Google Play URL).
@@ -77,6 +77,13 @@ twitter = client.fetch("333903271", ratings=[1, 2])
 
 ---
 
+!!! note "`countries=` only applies to the public App Store RSS feed"
+
+    It is the one per-country source. App Store Connect and both Google Play
+    sources are global APIs (one request covers every territory), so a
+    country list there is ignored, and logs a warning saying so. Reviews still
+    report their own `country` where the source knows it.
+
 ## Filter Results
 
 ```python
@@ -106,7 +113,7 @@ Every `client.fetch()` call returns a `FetchResult`. It is iterable and supports
 | `result.filter(...)` | Returns a new filtered `FetchResult`. |
 | `result.sort(...)` | Returns a new sorted `FetchResult`. |
 | `result.limit(n)` | Returns a new `FetchResult` truncated to `n` reviews. |
-| `result.to_dicts()` | Convert reviews to a list of plain dicts. |
+| `result.to_dicts()` | JSON-serialisable plain dicts, ready for `json` or `csv`. |
 
 ```python
 result = client.fetch("123456789")
@@ -115,7 +122,7 @@ print(f"Reviews: {len(result)}")
 
 if result.errors:
     for err in result.errors:
-        print(f"Failed: {err.country} -- {err.message}")
+        print(f"Failed: {err.country} ({err.message})")
 ```
 
 A fetch can partially succeed. If 3 out of 5 countries succeed, you get reviews from those 3 and errors for the other 2.
@@ -124,6 +131,6 @@ A fetch can partially succeed. If 3 out of 5 countries succeed, you get reviews 
 
 ## Next Steps
 
-- [Python API](../guide/python-api.md) -- all parameters and options
-- [Authentication](../guide/authentication.md) -- set up authenticated APIs
-- [Export Formats](../guide/export.md) -- JSON, JSONL, CSV export
+- [Python API](../guide/python-api.md): all parameters and options
+- [Authentication](../guide/authentication.md): set up authenticated APIs
+- [Paging and cursors](../guide/paging.md): stream reviews, resume a walk

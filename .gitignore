@@ -46,3 +46,7 @@ site/
 
 # Worktrees
 .worktrees/
+
+# Benchmark harness (local only, not part of the distributed package)
+bench/
+tests/bench/

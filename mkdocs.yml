@@ -47,8 +47,10 @@ nav:
       - Quick Start: getting-started/quickstart.md
   - Guide:
       - Python API: guide/python-api.md
+      - Paging and Cursors: guide/paging.md
+      - Async: guide/async.md
       - Authentication: guide/authentication.md
-      - Export Formats: guide/export.md
   - Reference:
       - Models: reference/models.md
+      - Source Capabilities: reference/capabilities.md
       - How It Works: reference/how-it-works.md

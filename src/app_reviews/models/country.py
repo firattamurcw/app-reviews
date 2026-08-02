@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from enum import StrEnum
 from typing import ClassVar
+
+_LOG = logging.getLogger(__name__)
 
 
 class Country(StrEnum):
@@ -177,7 +180,7 @@ class Country(StrEnum):
     ENGLISH_SPEAKING: ClassVar[frozenset[Country]]
 
 
-# Region groups — assigned after class creation because enum members
+# Region groups, assigned after class creation because enum members
 # must be defined before they can be referenced in frozenset literals.
 
 Country.ALL = frozenset(Country)
@@ -347,3 +350,205 @@ Country.ENGLISH_SPEAKING = frozenset(
         Country.GH,
     }
 )
+
+
+_ALPHA3_TO_ALPHA2: dict[str, str] = {
+    "ARE": "ae",
+    "ATG": "ag",
+    "AIA": "ai",
+    "ALB": "al",
+    "ARM": "am",
+    "AGO": "ao",
+    "ARG": "ar",
+    "AUT": "at",
+    "AUS": "au",
+    "AZE": "az",
+    "BRB": "bb",
+    "BEL": "be",
+    "BFA": "bf",
+    "BGR": "bg",
+    "BHR": "bh",
+    "BEN": "bj",
+    "BMU": "bm",
+    "BRN": "bn",
+    "BOL": "bo",
+    "BRA": "br",
+    "BHS": "bs",
+    "BTN": "bt",
+    "BWA": "bw",
+    "BLR": "by",
+    "BLZ": "bz",
+    "CAN": "ca",
+    "COG": "cg",
+    "CHE": "ch",
+    "CHL": "cl",
+    "CHN": "cn",
+    "COL": "co",
+    "CRI": "cr",
+    "CPV": "cv",
+    "CYP": "cy",
+    "CZE": "cz",
+    "DEU": "de",
+    "DNK": "dk",
+    "DMA": "dm",
+    "DOM": "do",
+    "DZA": "dz",
+    "ECU": "ec",
+    "EST": "ee",
+    "EGY": "eg",
+    "ESP": "es",
+    "FIN": "fi",
+    "FJI": "fj",
+    "FSM": "fm",
+    "FRA": "fr",
+    "GBR": "gb",
+    "GRD": "gd",
+    "GHA": "gh",
+    "GMB": "gm",
+    "GRC": "gr",
+    "GTM": "gt",
+    "GNB": "gw",
+    "GUY": "gy",
+    "HKG": "hk",
+    "HND": "hn",
+    "HRV": "hr",
+    "HUN": "hu",
+    "IDN": "id",
+    "IRL": "ie",
+    "ISR": "il",
+    "IND": "in",
+    "ISL": "is",
+    "ITA": "it",
+    "JAM": "jm",
+    "JOR": "jo",
+    "JPN": "jp",
+    "KEN": "ke",
+    "KGZ": "kg",
+    "KHM": "kh",
+    "KNA": "kn",
+    "KOR": "kr",
+    "KWT": "kw",
+    "CYM": "ky",
+    "KAZ": "kz",
+    "LAO": "la",
+    "LBN": "lb",
+    "LCA": "lc",
+    "LKA": "lk",
+    "LBR": "lr",
+    "LTU": "lt",
+    "LUX": "lu",
+    "LVA": "lv",
+    "MDA": "md",
+    "MDG": "mg",
+    "MKD": "mk",
+    "MLI": "ml",
+    "MNG": "mn",
+    "MAC": "mo",
+    "MRT": "mr",
+    "MSR": "ms",
+    "MLT": "mt",
+    "MUS": "mu",
+    "MWI": "mw",
+    "MEX": "mx",
+    "MYS": "my",
+    "MOZ": "mz",
+    "NAM": "na",
+    "NER": "ne",
+    "NGA": "ng",
+    "NIC": "ni",
+    "NLD": "nl",
+    "NOR": "no",
+    "NPL": "np",
+    "NZL": "nz",
+    "OMN": "om",
+    "PAN": "pa",
+    "PER": "pe",
+    "PNG": "pg",
+    "PHL": "ph",
+    "PAK": "pk",
+    "POL": "pl",
+    "PRT": "pt",
+    "PLW": "pw",
+    "PRY": "py",
+    "QAT": "qa",
+    "ROU": "ro",
+    "RUS": "ru",
+    "SAU": "sa",
+    "SLB": "sb",
+    "SYC": "sc",
+    "SWE": "se",
+    "SGP": "sg",
+    "SVN": "si",
+    "SVK": "sk",
+    "SLE": "sl",
+    "SEN": "sn",
+    "SUR": "sr",
+    "STP": "st",
+    "SLV": "sv",
+    "SWZ": "sz",
+    "TCA": "tc",
+    "TCD": "td",
+    "THA": "th",
+    "TJK": "tj",
+    "TKM": "tm",
+    "TUN": "tn",
+    "TUR": "tr",
+    "TTO": "tt",
+    "TWN": "tw",
+    "TZA": "tz",
+    "UKR": "ua",
+    "UGA": "ug",
+    "USA": "us",
+    "URY": "uy",
+    "UZB": "uz",
+    "VCT": "vc",
+    "VEN": "ve",
+    "VGB": "vg",
+    "VNM": "vn",
+    "YEM": "ye",
+    "ZAF": "za",
+    "ZWE": "zw",
+}
+"""ISO 3166-1 alpha-3 to alpha-2, for every storefront in ``Country``.
+
+App Store Connect reports a review's storefront as alpha-3 (``"USA"``), while the
+RSS feed and this enum use alpha-2 (``"us"``). Without a translation the same
+field would carry two alphabets depending on which source produced the review.
+
+Hand-written, then checked: all 155 pairs were diffed against CLDR's
+``territoryAlias`` table (via ``babel.core.get_global("territory_aliases")``) with
+zero mismatches. Redo that diff if entries are added: a wrong pair here is a
+silent data bug, and the bijection tests in ``test_country.py`` cannot catch one.
+"""
+
+
+def normalise_country(code: str | None, *, warn_unknown: bool = True) -> str | None:
+    """Return a storefront code in the alpha-2 form ``Country`` uses.
+
+    Accepts either alphabet, in any case, with surrounding whitespace. An
+    unrecognised code is returned unchanged rather than dropped (losing a
+    storefront is worse than reporting an odd one), and logged so it can be
+    added here.
+
+    ``warn_unknown=False`` keeps the normalisation and drops the logging.
+    ``Country`` is the iTunes storefront list, so "not a member" means "wrong"
+    only for Apple. Google Play serves markets Apple has no storefront in --
+    Serbia, Bosnia, Morocco, and warning on those would be noise on a
+    correct call.
+    """
+    if not code or not (code := code.strip()):
+        return None
+
+    if len(code) == 2:
+        alpha2 = code.lower()
+    else:
+        mapped = _ALPHA3_TO_ALPHA2.get(code.upper())
+        if mapped is None:
+            if warn_unknown:
+                _LOG.warning("Unrecognised storefront code %r, passing through", code)
+            return code
+        alpha2 = mapped
+
+    if warn_unknown and alpha2 not in Country:
+        _LOG.warning("Unrecognised storefront code %r, passing through", code)
+    return alpha2

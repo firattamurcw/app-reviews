@@ -1,12 +1,12 @@
-"""Live tests for search and lookup — hit real APIs.
+"""Live tests for search and lookup, hitting real APIs.
 
 Run with: uv run python -m pytest -m live tests/app_reviews/e2e/test_search_live.py -v
 """
 
 import pytest
 
-from app_reviews.clients.search.appstore import AppStoreSearch
-from app_reviews.clients.search.googleplay import GooglePlaySearch
+from app_reviews.appstore.search import AppStoreSearch
+from app_reviews.googleplay.search import GooglePlaySearch
 from app_reviews.models.metadata import AppMetadata
 
 

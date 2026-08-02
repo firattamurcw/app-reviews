@@ -12,6 +12,10 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    # The whole suite runs in ~15s. A cap so an unbounded walk cannot sit
+    # at GitHub's 6-hour default: `ratings=` disables the limit-based early
+    # stop by design, so a test that forgets `since` never finishes.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
 

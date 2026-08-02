@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "app-reviews"
-version = "0.5.0"
+version = "0.6.0"
 description = "The go-to Python package for App Store and Google Play review extraction"
 readme = "README.md"
 license = "MIT"
@@ -24,7 +24,19 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "cryptography==49.0.0",
+    # Ranges, not pins. A library's `==` becomes every consumer's `==`: when a
+    # CVE lands in either of these, an application depending on app-reviews
+    # cannot take the patch until app-reviews cuts a release, and pip either
+    # hard-conflicts or resolves the whole environment onto the vulnerable
+    # version. Exact versions still live in uv.lock, which is what CI installs,
+    # so reproducibility is unaffected.
+    #
+    # Upper bounds are real: httpx is pre-1.0, so a minor bump may break, and
+    # the redirect behaviour this package relies on (Authorization dropped on
+    # origin change) is httpx's, not ours. test_http.py pins it, so an
+    # in-range upgrade that changed it fails the suite rather than shipping.
+    "cryptography>=49,<50",
+    "httpx>=0.28,<0.29",
 ]
 
 [project.urls]
@@ -70,7 +82,7 @@ source = ["app_reviews"]
 branch = true
 
 [tool.coverage.report]
-fail_under = 75
+fail_under = 85
 show_missing = true
 exclude_lines = [
     "pragma: no cover",

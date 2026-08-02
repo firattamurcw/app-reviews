@@ -42,3 +42,71 @@ class TestReviewRatingValidation:
     def test_negative_rating_raises(self):
         with pytest.raises(ValueError, match="rating must be 1-5"):
             _make_review(rating=-1)
+
+
+class TestNullableFields:
+    def test_country_accepts_none(self):
+        review = _make_review(country=None)
+        assert review.country is None
+
+    def test_title_accepts_none(self):
+        review = _make_review(title=None)
+        assert review.title is None
+
+    def test_country_still_accepts_a_code(self):
+        assert _make_review(country="gb").country == "gb"
+
+
+class TestToDict:
+    """``Review`` owns the knowledge that ``raw`` is payload and a timestamp is
+    not JSON-safe, because ``Review`` owns those fields.
+
+    That knowledge used to live in ``app_reviews.export.review_to_dict`` while
+    ``FetchResult.to_dicts`` had its own ``asdict`` call that knew neither, so
+    there were two conversions and only one of them produced serialisable output.
+    """
+
+    def test_excludes_raw_by_default(self):
+        review = _make_review(raw={"entry": ["payload"]})
+
+        assert "raw" not in review.to_dict()
+
+    def test_includes_raw_when_asked(self):
+        review = _make_review(raw={"entry": ["payload"]})
+
+        assert review.to_dict(include_raw=True)["raw"] == {"entry": ["payload"]}
+
+    def test_raw_is_passed_through_not_copied(self):
+        """A deep copy of the payload only to serialise it is waste; asdict did
+        exactly that, and then the exporter threw the copy away."""
+        payload = {"entry": ["payload"]}
+        review = _make_review(raw=payload)
+
+        assert review.to_dict(include_raw=True)["raw"] is payload
+
+    def test_every_other_field_survives(self):
+        import dataclasses
+
+        expected = {f.name for f in dataclasses.fields(Review)} - {"raw"}
+
+        assert set(_make_review().to_dict()) == expected
+
+    def test_timestamps_are_iso_8601(self):
+        """``default=str`` rendered '2024-03-15 10:00:00+00:00': a space where
+        ISO 8601 wants a T, which trips strict parsers downstream."""
+        review = _make_review(created_at=datetime(2024, 3, 15, 10, 0, tzinfo=UTC))
+
+        assert review.to_dict()["created_at"] == "2024-03-15T10:00:00+00:00"
+
+    def test_absent_timestamps_stay_none(self):
+        review = _make_review(updated_at=None, fetched_at=None)
+        d = review.to_dict()
+
+        assert d["updated_at"] is None
+        assert d["fetched_at"] is None
+
+    def test_the_result_is_json_serialisable(self):
+        """The whole point: json.dumps(to_dicts()) used to raise TypeError."""
+        import json
+
+        json.dumps(_make_review().to_dict())
