@@ -35,7 +35,7 @@ dependencies = [
     # the redirect behaviour this package relies on (Authorization dropped on
     # origin change) is httpx's, not ours. test_http.py pins it, so an
     # in-range upgrade that changed it fails the suite rather than shipping.
-    "cryptography>=49,<50",
+    "cryptography>=49,<51",
     "httpx>=0.28,<0.29",
 ]
 
